@@ -46,6 +46,41 @@
       color: var(--muted);
       font-variant-numeric: tabular-nums;
     }
+    .kr-panel {
+      background: var(--panel);
+      border: 1px solid #232a33;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      font-variant-numeric: tabular-nums;
+    }
+    .kr-panel .kr-head {
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      border-bottom: 1px solid #232a33;
+    }
+    .kr-row {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 11px 18px;
+      font-size: 15px;
+      border-bottom: 1px solid #1c232c;
+    }
+    .kr-row:last-child { border-bottom: none; }
+    .kr-row .nm { font-weight: 600; font-size: 14px; }
+    .kr-row .pr, .kr-row .df, .kr-row .pc { text-align: right; }
+    .kr-note {
+      padding: 8px 18px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+    .up { color: #ef5350; }
+    .down { color: #3d9bff; }
+    .flat { color: var(--muted); }
     .widget-panel {
       background: var(--panel);
       border: 1px solid #232a33;
@@ -68,6 +103,14 @@
       <h1>Market <span>Dashboard</span></h1>
       <div class="clock" id="clock"></div>
     </header>
+
+    <div class="kr-panel">
+      <div class="kr-head">🇰🇷 한국 관심종목 · 코스닥</div>
+      <div id="kr-rows">
+        <div class="kr-row"><span class="nm">로딩 중...</span><span class="pr"></span><span class="df"></span><span class="pc"></span></div>
+      </div>
+      <div class="kr-note" id="kr-note">Yahoo Finance · 지연 시세일 수 있음</div>
+    </div>
 
     <div class="widget-panel">
       <!-- TradingView Market Data Widget BEGIN -->
@@ -153,6 +196,44 @@
     tick();
     setInterval(tick, 1000);
 
+    async function renderKr() {
+      const box = document.getElementById("kr-rows");
+      const note = document.getElementById("kr-note");
+      let data = null;
+      try {
+        const res = await fetch("quotes.json?t=" + Date.now(), { cache: "no-store" });
+        if (res.ok) data = await res.json();
+      } catch (e) { /* ignore */ }
+
+      if (!data || !data.items) {
+        note.textContent = "시세 파일 대기 중 (Actions 첫 실행 전이거나 일시 오류)";
+        return;
+      }
+
+      box.innerHTML = "";
+      data.items.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "kr-row";
+        if (item.error !== undefined) {
+          row.innerHTML = '<span class="nm">' + item.name + '</span><span class="pr flat">—</span><span class="df flat">조회 실패</span><span class="pc"></span>';
+        } else {
+          const fmt = n => item.krw
+            ? Math.round(n).toLocaleString("ko-KR")
+            : n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const cls = item.diff > 0 ? "up" : (item.diff < 0 ? "down" : "flat");
+          const sign = item.diff > 0 ? "+" : "";
+          row.innerHTML =
+            '<span class="nm">' + item.name + '</span>' +
+            '<span class="pr">' + fmt(item.price) + '</span>' +
+            '<span class="df ' + cls + '">' + sign + fmt(item.diff) + '</span>' +
+            '<span class="pc ' + cls + '">' + sign + item.pct.toFixed(2) + '%</span>';
+        }
+        box.appendChild(row);
+      });
+      note.textContent = "네이버 증권 · " + data.updated + " 기준 · 10분 주기 갱신";
+    }
+    renderKr();
+    setInterval(renderKr, 120000);
   </script>
 </body>
 </html>
