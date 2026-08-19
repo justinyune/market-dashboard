@@ -31,6 +31,7 @@ for code, name in STOCKS:
         d = get_datas(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code}")
         items.append({
             "name": name,
+            "code": code,
             "price": num(d["closePrice"]),
             "diff": num(d["compareToPreviousClosePrice"]),
             "pct": num(d["fluctuationsRatio"]),
@@ -44,6 +45,7 @@ for code, name in INDICES:
         d = get_datas(f"https://polling.finance.naver.com/api/realtime/domestic/index/{code}")
         items.append({
             "name": name,
+            "code": code,
             "price": num(d["closePrice"]),
             "diff": num(d["compareToPreviousClosePrice"]),
             "pct": num(d["fluctuationsRatio"]),
