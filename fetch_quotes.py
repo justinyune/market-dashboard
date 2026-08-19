@@ -13,7 +13,7 @@ INDICES = [
     ("KOSDAQ", "코스닥"),
 ]
 HISTORY_CODES = ["KOSPI", "KOSDAQ", "FUT"]  # 캔들차트용 일별 데이터
-HISTORY_PAGES = 3  # 100개씩 3페이지 = 최대 300영업일 (약 14개월)
+HISTORY_PAGES = 8  # 100개씩 8페이지 = 최대 800영업일 (60주선 계산용)
 
 
 def get_json(url):
@@ -97,7 +97,7 @@ def history_mapi(code_):
 
 
 def history_fchart(code_):
-    url = f"https://fchart.stock.naver.com/sise.nhn?symbol={code_}&timeframe=day&count=300&requestType=0"
+    url = f"https://fchart.stock.naver.com/sise.nhn?symbol={code_}&timeframe=day&count=800&requestType=0"
     req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req, timeout=15) as res:
         xml = res.read().decode("euc-kr", errors="ignore")
