@@ -54,8 +54,41 @@ for code, name in INDICES:
     except Exception as e:
         items.append({"name": name, "error": str(e)})
 
+# --- 코스피200 선물 (야간 포함) 후보 엔드포인트 순차 시도 ---
+FUT_CANDIDATES = [
+    ("polling-index-FUT", "https://polling.finance.naver.com/api/realtime/domestic/index/FUT"),
+    ("polling-index-K2G", "https://polling.finance.naver.com/api/realtime/domestic/index/K2G"),
+    ("polling-futures", "https://polling.finance.naver.com/api/realtime/domestic/futures/FUT"),
+    ("m-api-index-FUT", "https://m.stock.naver.com/api/index/FUT/basic"),
+]
+
+fut_item = None
+fut_debug = []
+for tag, url in FUT_CANDIDATES:
+    try:
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=15) as res:
+            j = json.loads(res.read().decode("utf-8"))
+        d = j["datas"][0] if "datas" in j else j
+        price = num(d["closePrice"])
+        fut_item = {
+            "name": "코스피200 선물",
+            "code": "FUT",
+            "price": price,
+            "diff": num(d.get("compareToPreviousClosePrice", 0)),
+            "pct": num(d.get("fluctuationsRatio", 0)),
+            "krw": False,
+        }
+        fut_debug.append(tag + ": OK")
+        break
+    except Exception as e:
+        fut_debug.append(tag + ": " + str(e)[:60])
+
+if fut_item:
+    items.insert(2, fut_item)  # 코스닥 지수 앞에 삽입
+
 kst = datetime.now(timezone(timedelta(hours=9)))
-out = {"updated": kst.strftime("%m/%d %H:%M"), "items": items}
+out = {"updated": kst.strftime("%m/%d %H:%M"), "items": items, "fut_debug": fut_debug}
 
 with open("quotes.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False)
