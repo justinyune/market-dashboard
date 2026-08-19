@@ -9,15 +9,17 @@ STOCKS = [
     ("000660", "SK하이닉스"),
 ]
 INDICES = [
-    ("KOSDAQ", "코스닥 지수"),
+    ("KOSPI", "코스피"),
+    ("KOSDAQ", "코스닥"),
 ]
+HISTORY_CODES = ["KOSPI", "KOSDAQ", "FUT"]  # 캔들차트용 일별 데이터
+HISTORY_PAGES = 3  # 100개씩 3페이지 = 최대 300영업일 (약 14개월)
 
 
-def get_datas(url):
+def get_json(url):
     req = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(req, timeout=15) as res:
-        j = json.loads(res.read().decode("utf-8"))
-    return j["datas"][0]
+        return json.loads(res.read().decode("utf-8"))
 
 
 def num(s):
@@ -25,72 +27,83 @@ def num(s):
 
 
 items = []
+debug = []
 
-for code, name in STOCKS:
+# --- 지수: 코스피, 코스닥 ---
+for code_, name in INDICES:
     try:
-        d = get_datas(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code}")
+        d = get_json(f"https://polling.finance.naver.com/api/realtime/domestic/index/{code_}")["datas"][0]
         items.append({
-            "name": name,
-            "code": code,
+            "name": name, "code": code_, "group": "index",
+            "price": num(d["closePrice"]),
+            "diff": num(d["compareToPreviousClosePrice"]),
+            "pct": num(d["fluctuationsRatio"]),
+            "krw": False,
+        })
+    except Exception as e:
+        items.append({"name": name, "code": code_, "group": "index", "error": str(e)[:60]})
+
+# --- 코스피200 선물 ---
+try:
+    d = get_json("https://polling.finance.naver.com/api/realtime/domestic/index/FUT")["datas"][0]
+    items.append({
+        "name": "코스피200 선물", "code": "FUT", "group": "index",
+        "price": num(d["closePrice"]),
+        "diff": num(d["compareToPreviousClosePrice"]),
+        "pct": num(d["fluctuationsRatio"]),
+        "krw": False,
+    })
+except Exception as e:
+    debug.append("FUT: " + str(e)[:60])
+
+# --- 관심종목 ---
+for code_, name in STOCKS:
+    try:
+        d = get_json(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code_}")["datas"][0]
+        items.append({
+            "name": name, "code": code_, "group": "stock",
             "price": num(d["closePrice"]),
             "diff": num(d["compareToPreviousClosePrice"]),
             "pct": num(d["fluctuationsRatio"]),
             "krw": True,
         })
     except Exception as e:
-        items.append({"name": name, "error": str(e)})
+        items.append({"name": name, "code": code_, "group": "stock", "error": str(e)[:60]})
 
-for code, name in INDICES:
+# --- 지수 일별 시세 (자체 캔들차트용) ---
+history = {}
+for code_ in HISTORY_CODES:
+    bars = []
     try:
-        d = get_datas(f"https://polling.finance.naver.com/api/realtime/domestic/index/{code}")
-        items.append({
-            "name": name,
-            "code": code,
-            "price": num(d["closePrice"]),
-            "diff": num(d["compareToPreviousClosePrice"]),
-            "pct": num(d["fluctuationsRatio"]),
-            "krw": False,
-        })
+        for page in range(1, HISTORY_PAGES + 1):
+            rows = get_json(f"https://m.stock.naver.com/api/index/{code_}/price?pageSize=100&page={page}")
+            if not isinstance(rows, list) or not rows:
+                break
+            for r in rows:
+                try:
+                    bars.append({
+                        "d": r["localTradedAt"][:10],
+                        "o": num(r["openPrice"]),
+                        "h": num(r["highPrice"]),
+                        "l": num(r["lowPrice"]),
+                        "c": num(r["closePrice"]),
+                    })
+                except Exception:
+                    continue
+            if len(rows) < 100:
+                break
+        bars.sort(key=lambda b: b["d"])  # 과거 -> 현재
+        if bars:
+            history[code_] = bars
+        else:
+            debug.append(f"history-{code_}: empty")
     except Exception as e:
-        items.append({"name": name, "error": str(e)})
-
-# --- 코스피200 선물 (야간 포함) 후보 엔드포인트 순차 시도 ---
-FUT_CANDIDATES = [
-    ("polling-index-FUT", "https://polling.finance.naver.com/api/realtime/domestic/index/FUT"),
-    ("polling-index-K2G", "https://polling.finance.naver.com/api/realtime/domestic/index/K2G"),
-    ("polling-futures", "https://polling.finance.naver.com/api/realtime/domestic/futures/FUT"),
-    ("m-api-index-FUT", "https://m.stock.naver.com/api/index/FUT/basic"),
-]
-
-fut_item = None
-fut_debug = []
-for tag, url in FUT_CANDIDATES:
-    try:
-        req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req, timeout=15) as res:
-            j = json.loads(res.read().decode("utf-8"))
-        d = j["datas"][0] if "datas" in j else j
-        price = num(d["closePrice"])
-        fut_item = {
-            "name": "코스피200 선물",
-            "code": "FUT",
-            "price": price,
-            "diff": num(d.get("compareToPreviousClosePrice", 0)),
-            "pct": num(d.get("fluctuationsRatio", 0)),
-            "krw": False,
-        }
-        fut_debug.append(tag + ": OK")
-        break
-    except Exception as e:
-        fut_debug.append(tag + ": " + str(e)[:60])
-
-if fut_item:
-    items.insert(0, fut_item)  # 패널 맨 위에 표시
+        debug.append(f"history-{code_}: " + str(e)[:60])
 
 kst = datetime.now(timezone(timedelta(hours=9)))
-out = {"updated": kst.strftime("%m/%d %H:%M"), "items": items, "fut_debug": fut_debug}
+out = {"updated": kst.strftime("%m/%d %H:%M"), "items": items, "history": history, "debug": debug}
 
 with open("quotes.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False)
 
-print(json.dumps(out, ensure_ascii=False))
+print("items:", len(items), "history:", {k: len(v) for k, v in history.items()}, "debug:", debug)

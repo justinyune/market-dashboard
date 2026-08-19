@@ -145,11 +145,18 @@
     </header>
 
     <div class="kr-panel">
-      <div class="kr-head">🇰🇷 한국 관심종목 · 코스닥</div>
-      <div id="kr-rows">
+      <div class="kr-head">🇰🇷 한국 지수</div>
+      <div id="kr-idx-rows">
         <div class="kr-row"><span class="nm">로딩 중...</span><span class="pr"></span><span class="df"></span><span class="pc"></span></div>
       </div>
-      <div class="kr-note" id="kr-note">Yahoo Finance · 지연 시세일 수 있음</div>
+    </div>
+
+    <div class="kr-panel">
+      <div class="kr-head">🇰🇷 관심종목</div>
+      <div id="kr-stk-rows">
+        <div class="kr-row"><span class="nm">로딩 중...</span><span class="pr"></span><span class="df"></span><span class="pc"></span></div>
+      </div>
+      <div class="kr-note" id="kr-note">네이버 증권</div>
     </div>
 
     <div class="widget-panel">
@@ -284,136 +291,195 @@
     tick();
     setInterval(tick, 1000);
 
-    const KR_CODES = { "삼성전자": "005930", "SK하이닉스": "000660", "코스닥 지수": "KOSDAQ" };
     const openCharts = {};
+    let krData = null;
 
-    function chartUrls(code, period) {
+    const UP = "#ef5350", DOWN = "#3d9bff";
+
+    function intraUrl(code) {
       const t = Math.floor(Date.now() / 60000);
-      if (code === "KOSDAQ" || code === "FUT") {
-        if (period === "intra") {
-          return ["https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t];
-        }
-        return [
-          "https://ssl.pstatic.net/imgfinance/chart/mobile/candle/" + period + "/" + code + "_end.png?t=" + t,
-          "https://ssl.pstatic.net/imgfinance/chart/sise/" + period + "/" + code + ".png?t=" + t
-        ];
-      }
-      if (period === "intra") {
-        return [
-          "https://ssl.pstatic.net/imgfinance/chart/item/area/day/" + code + ".png?t=" + t,
-          "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t
-        ];
-      }
-      return ["https://ssl.pstatic.net/imgfinance/chart/item/candle/" + period + "/" + code + ".png?t=" + t];
+      const suffix = (code === "005930" || code === "000660") ? code : code + "";
+      return (code.length === 6)
+        ? "https://ssl.pstatic.net/imgfinance/chart/item/area/day/" + code + ".png?t=" + t
+        : "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t;
+    }
+    function stockCandleUrl(code, period) {
+      const t = Math.floor(Date.now() / 60000);
+      return "https://ssl.pstatic.net/imgfinance/chart/item/candle/" + period + "/" + code + ".png?t=" + t;
     }
 
-    function loadWithFallback(img, urls, code) {
-      let i = 0;
-      img.style.display = "block";
-      img.onerror = () => {
-        i++;
-        if (i < urls.length) {
-          img.src = urls[i];
+    // ----- 일별 데이터 -> 주봉/월봉 집계 -----
+    function isoWeekKey(ds) {
+      const dt = new Date(ds + "T00:00:00Z");
+      const day = (dt.getUTCDay() + 6) % 7;
+      dt.setUTCDate(dt.getUTCDate() - day + 3);
+      const firstThu = new Date(Date.UTC(dt.getUTCFullYear(), 0, 4));
+      const week = 1 + Math.round(((dt - firstThu) / 86400000 - 3 + ((firstThu.getUTCDay() + 6) % 7)) / 7);
+      return dt.getUTCFullYear() + "-W" + String(week).padStart(2, "0");
+    }
+    function aggregate(bars, mode) {
+      if (mode === "day") return bars;
+      const keyFn = mode === "week" ? (b => isoWeekKey(b.d)) : (b => b.d.slice(0, 7));
+      const out = [];
+      let cur = null, curKey = null;
+      bars.forEach(b => {
+        const k = keyFn(b);
+        if (k !== curKey) {
+          if (cur) out.push(cur);
+          cur = { d: b.d, o: b.o, h: b.h, l: b.l, c: b.c };
+          curKey = k;
         } else {
-          img.style.display = "none";
-          const fb = img.parentElement.querySelector(".chart-fallback");
-          if (fb) fb.style.display = "block";
+          cur.h = Math.max(cur.h, b.h);
+          cur.l = Math.min(cur.l, b.l);
+          cur.c = b.c;
         }
-      };
-      const fb = img.parentElement && img.parentElement.querySelector(".chart-fallback");
-      if (fb) fb.style.display = "none";
-      img.src = urls[0];
+      });
+      if (cur) out.push(cur);
+      return out;
     }
 
-    function makeChartBox(code) {
+    // ----- SVG 캔들차트 -----
+    function renderCandles(container, allBars, mode) {
+      const counts = { day: 60, week: 52, month: 24 };
+      const bars = aggregate(allBars, mode).slice(-counts[mode]);
+      if (!bars.length) return false;
+      const W = 700, H = 320, padL = 8, padR = 64, padT = 12, padB = 22;
+      const hi = Math.max(...bars.map(b => b.h));
+      const lo = Math.min(...bars.map(b => b.l));
+      const span = (hi - lo) || 1;
+      const y = v => padT + (hi - v) / span * (H - padT - padB);
+      const cw = (W - padL - padR) / bars.length;
+      const bw = Math.max(2, cw * 0.62);
+      let el = "";
+      bars.forEach((b, i) => {
+        const x = padL + i * cw + cw / 2;
+        const up = b.c >= b.o;
+        const col = up ? UP : DOWN;
+        el += '<line x1="' + x + '" y1="' + y(b.h) + '" x2="' + x + '" y2="' + y(b.l) + '" stroke="' + col + '" stroke-width="1"/>';
+        const top = y(Math.max(b.o, b.c)), bot = y(Math.min(b.o, b.c));
+        el += '<rect x="' + (x - bw / 2) + '" y="' + top + '" width="' + bw + '" height="' + Math.max(1, bot - top) + '" fill="' + col + '"/>';
+      });
+      const fmt = v => v >= 1000 ? v.toLocaleString("ko-KR", { maximumFractionDigits: 0 }) : v.toFixed(2);
+      [hi, (hi + lo) / 2, lo].forEach(v => {
+        el += '<line x1="' + padL + '" y1="' + y(v) + '" x2="' + (W - padR) + '" y2="' + y(v) + '" stroke="#2a323d" stroke-width="0.5" stroke-dasharray="3,4"/>';
+        el += '<text x="' + (W - padR + 6) + '" y="' + (y(v) + 4) + '" fill="#8a919c" font-size="12">' + fmt(v) + '</text>';
+      });
+      const first = bars[0].d.slice(2), last = bars[bars.length - 1].d.slice(2);
+      el += '<text x="' + padL + '" y="' + (H - 6) + '" fill="#8a919c" font-size="11">' + first + '</text>';
+      el += '<text x="' + (W - padR) + '" y="' + (H - 6) + '" fill="#8a919c" font-size="11" text-anchor="end">' + last + '</text>';
+      container.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:700px;background:#11151b;border:1px solid #232a33;border-radius:8px;display:block">' + el + '</svg>';
+      return true;
+    }
+
+    // ----- 차트 박스 -----
+    function makeChartBox(item) {
+      const code = item.code;
+      const isStock = item.group === "stock";
       const box = document.createElement("div");
       box.className = "kr-chart" + (openCharts[code] ? " open" : "");
-      box.dataset.code = code;
-      const periods = [["intra", "당일"], ["day", "일봉"], ["week", "주봉"], ["month", "월봉"]];
       const tabs = document.createElement("div");
       tabs.className = "tabs";
-      const img = document.createElement("img");
-      img.alt = "차트";
-      const fallback = document.createElement("div");
-      fallback.className = "chart-fallback";
-      fallback.style.cssText = "display:none;font-size:13px;color:var(--muted);padding:6px 2px;";
-      const link = code === "FUT"
-        ? "https://www.tradingview.com/symbols/KRX-K2I1!/"
-        : (code === "KOSDAQ"
-          ? "https://m.stock.naver.com/domestic/index/KOSDAQ/total"
-          : "https://m.stock.naver.com/domestic/stock/" + code + "/total");
-      fallback.innerHTML = '차트 이미지를 불러올 수 없습니다 · <a href="' + link + '" target="_blank" style="color:var(--accent)">' + (code === 'FUT' ? 'TradingView에서 보기 (야간 차트 포함)' : '네이버 증권에서 보기') + ' ↗</a>';
-      const current = openCharts[code] || "intra";
-      periods.forEach(([pv, label]) => {
+      const cv = document.createElement("div");
+
+      const fbLink = code === "FUT"
+        ? '<a href="https://www.tradingview.com/symbols/KRX-K2I1!/" target="_blank" style="color:var(--accent)">TradingView에서 보기 (야간 차트 포함) ↗</a>'
+        : (isStock
+          ? '<a href="https://m.stock.naver.com/domestic/stock/' + code + '/total" target="_blank" style="color:var(--accent)">네이버 증권에서 보기 ↗</a>'
+          : '<a href="https://m.stock.naver.com/domestic/index/' + code + '/total" target="_blank" style="color:var(--accent)">네이버 증권에서 보기 ↗</a>');
+
+      function show(period) {
+        openCharts[code] = period;
+        tabs.querySelectorAll("button").forEach(b => b.className = b.dataset.p === period ? "on" : "");
+        if (period === "intra") {
+          const img = document.createElement("img");
+          img.alt = "차트";
+          img.onerror = () => { cv.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 2px;">차트를 불러올 수 없습니다 · ' + fbLink + '</div>'; };
+          img.src = intraUrl(code);
+          cv.innerHTML = "";
+          cv.appendChild(img);
+          return;
+        }
+        if (isStock) {
+          const img = document.createElement("img");
+          img.alt = "차트";
+          img.onerror = () => { cv.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 2px;">차트를 불러올 수 없습니다 · ' + fbLink + '</div>'; };
+          img.src = stockCandleUrl(code, period);
+          cv.innerHTML = "";
+          cv.appendChild(img);
+        } else {
+          const bars = krData && krData.history && krData.history[code];
+          if (!bars || !renderCandles(cv, bars, period)) {
+            cv.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 2px;">차트 데이터가 아직 없습니다 · ' + fbLink + '</div>';
+          }
+        }
+      }
+
+      [["intra", "당일"], ["day", "일봉"], ["week", "주봉"], ["month", "월봉"]].forEach(([pv, label]) => {
         const b = document.createElement("button");
         b.textContent = label;
-        if (pv === current) b.className = "on";
-        b.onclick = (e) => {
-          e.stopPropagation();
-          openCharts[code] = pv;
-          tabs.querySelectorAll("button").forEach(x => x.className = "");
-          b.className = "on";
-          loadWithFallback(img, chartUrls(code, pv), code);
-        };
+        b.dataset.p = pv;
+        b.onclick = (e) => { e.stopPropagation(); show(pv); };
         tabs.appendChild(b);
       });
       box.appendChild(tabs);
-      box.appendChild(img);
-      box.appendChild(fallback);
-      loadWithFallback(img, chartUrls(code, current), code);
+      box.appendChild(cv);
+      box._show = show;
       return box;
     }
 
-    async function renderKr() {
-      const box = document.getElementById("kr-rows");
-      const note = document.getElementById("kr-note");
-      let data = null;
-      try {
-        const res = await fetch("quotes.json?t=" + Date.now(), { cache: "no-store" });
-        if (res.ok) data = await res.json();
-      } catch (e) { /* ignore */ }
-
-      if (!data || !data.items) {
-        note.textContent = "시세 파일 대기 중 (Actions 첫 실행 전이거나 일시 오류)";
-        return;
-      }
-
+    function renderRows(containerId, list) {
+      const box = document.getElementById(containerId);
       box.innerHTML = "";
-      data.items.forEach(item => {
-        const code = item.code || KR_CODES[item.name];
+      list.forEach(item => {
+        const code = item.code;
         const row = document.createElement("div");
         row.className = "kr-row" + (code ? " clickable" : "");
         if (item.error !== undefined) {
           row.innerHTML = '<span class="nm">' + item.name + '</span><span class="pr flat">—</span><span class="df flat">조회 실패</span><span class="pc"></span>';
-        } else {
-          const fmt = n => item.krw
-            ? Math.round(n).toLocaleString("ko-KR")
-            : n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const cls = item.diff > 0 ? "up" : (item.diff < 0 ? "down" : "flat");
-          const sign = item.diff > 0 ? "+" : "";
-          row.innerHTML =
-            '<span class="nm">' + item.name + ' <span style="font-size:11px;color:var(--muted)">▾</span></span>' +
-            '<span class="pr">' + fmt(item.price) + '</span>' +
-            '<span class="df ' + cls + '">' + sign + fmt(item.diff) + '</span>' +
-            '<span class="pc ' + cls + '">' + sign + item.pct.toFixed(2) + '%</span>';
+          box.appendChild(row);
+          return;
         }
+        const fmt = n => item.krw
+          ? Math.round(n).toLocaleString("ko-KR")
+          : n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const cls = item.diff > 0 ? "up" : (item.diff < 0 ? "down" : "flat");
+        const sign = item.diff > 0 ? "+" : "";
+        row.innerHTML =
+          '<span class="nm">' + item.name + ' <span style="font-size:11px;color:var(--muted)">▾</span></span>' +
+          '<span class="pr">' + fmt(item.price) + '</span>' +
+          '<span class="df ' + cls + '">' + sign + fmt(item.diff) + '</span>' +
+          '<span class="pc ' + cls + '">' + sign + item.pct.toFixed(2) + '%</span>';
         box.appendChild(row);
-        if (code) {
-          const chartBox = makeChartBox(code);
-          row.onclick = () => {
-            if (openCharts[code]) {
-              delete openCharts[code];
-              chartBox.classList.remove("open");
-            } else {
-              openCharts[code] = "intra";
-              loadWithFallback(chartBox.querySelector("img"), chartUrls(code, "intra"), code);
-              chartBox.classList.add("open");
-            }
-          };
-          box.appendChild(chartBox);
-        }
+        const chartBox = makeChartBox(item);
+        row.onclick = () => {
+          if (openCharts[code]) {
+            delete openCharts[code];
+            chartBox.classList.remove("open");
+          } else {
+            chartBox.classList.add("open");
+            chartBox._show("intra");
+          }
+        };
+        if (openCharts[code]) chartBox._show(openCharts[code]);
+        box.appendChild(chartBox);
       });
-      note.textContent = "네이버 증권 · " + data.updated + " 기준 · 5분 주기 갱신 · 행 클릭 시 차트";
+    }
+
+    async function renderKr() {
+      const note = document.getElementById("kr-note");
+      try {
+        const res = await fetch("quotes.json?t=" + Date.now(), { cache: "no-store" });
+        if (res.ok) krData = await res.json();
+      } catch (e) { /* ignore */ }
+      if (!krData || !krData.items) {
+        note.textContent = "시세 파일 대기 중 (Actions 첫 실행 전이거나 일시 오류)";
+        return;
+      }
+      const idx = krData.items.filter(i => i.group === "index" || ["코스피", "코스닥", "코스피200 선물", "코스닥 지수"].includes(i.name));
+      const stk = krData.items.filter(i => !idx.includes(i));
+      renderRows("kr-idx-rows", idx);
+      renderRows("kr-stk-rows", stk);
+      note.textContent = "네이버 증권 · " + krData.updated + " 기준 · 5분 주기 갱신 · 행 클릭 시 차트";
     }
     renderKr();
     setInterval(renderKr, 120000);
