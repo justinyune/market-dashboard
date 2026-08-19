@@ -287,12 +287,34 @@
     const KR_CODES = { "삼성전자": "005930", "SK하이닉스": "000660", "코스닥 지수": "KOSDAQ" };
     const openCharts = {};
 
-    function chartUrl(code, period) {
+    function chartUrls(code, period) {
       const t = Math.floor(Date.now() / 60000);
       if (code === "KOSDAQ") {
-        return "https://ssl.pstatic.net/imgfinance/chart/sise/" + period + "/KOSDAQ.png?t=" + t;
+        return [
+          "https://ssl.pstatic.net/imgfinance/chart/mobile/" + period + "/KOSDAQ_end.png?t=" + t,
+          "https://ssl.pstatic.net/imgfinance/chart/mobile/mini/KOSDAQ_end.png?t=" + t,
+          "https://ssl.pstatic.net/imgfinance/chart/sise/" + period + "/KOSDAQ.png?t=" + t
+        ];
       }
-      return "https://ssl.pstatic.net/imgfinance/chart/item/candle/" + period + "/" + code + ".png?t=" + t;
+      return ["https://ssl.pstatic.net/imgfinance/chart/item/candle/" + period + "/" + code + ".png?t=" + t];
+    }
+
+    function loadWithFallback(img, urls, code) {
+      let i = 0;
+      img.style.display = "block";
+      img.onerror = () => {
+        i++;
+        if (i < urls.length) {
+          img.src = urls[i];
+        } else {
+          img.style.display = "none";
+          const fb = img.parentElement.querySelector(".chart-fallback");
+          if (fb) fb.style.display = "block";
+        }
+      };
+      const fb = img.parentElement && img.parentElement.querySelector(".chart-fallback");
+      if (fb) fb.style.display = "none";
+      img.src = urls[0];
     }
 
     function makeChartBox(code) {
@@ -306,7 +328,13 @@
       tabs.className = "tabs";
       const img = document.createElement("img");
       img.alt = "차트";
-      img.onerror = () => { img.style.display = "none"; };
+      const fallback = document.createElement("div");
+      fallback.className = "chart-fallback";
+      fallback.style.cssText = "display:none;font-size:13px;color:var(--muted);padding:6px 2px;";
+      const link = code === "KOSDAQ"
+        ? "https://m.stock.naver.com/domestic/index/KOSDAQ/total"
+        : "https://m.stock.naver.com/domestic/stock/" + code + "/total";
+      fallback.innerHTML = '차트 이미지를 불러올 수 없습니다 · <a href="' + link + '" target="_blank" style="color:var(--accent)">네이버 증권에서 보기 ↗</a>';
       const current = openCharts[code] || "day";
       periods.forEach(([pv, label]) => {
         const b = document.createElement("button");
@@ -317,14 +345,14 @@
           openCharts[code] = pv;
           tabs.querySelectorAll("button").forEach(x => x.className = "");
           b.className = "on";
-          img.style.display = "block";
-          img.src = chartUrl(code, pv);
+          loadWithFallback(img, chartUrls(code, pv), code);
         };
         tabs.appendChild(b);
       });
-      img.src = chartUrl(code, current);
       box.appendChild(tabs);
       box.appendChild(img);
+      box.appendChild(fallback);
+      loadWithFallback(img, chartUrls(code, current), code);
       return box;
     }
 
@@ -370,7 +398,7 @@
               chartBox.classList.remove("open");
             } else {
               openCharts[code] = "day";
-              chartBox.querySelector("img").src = chartUrl(code, "day");
+              loadWithFallback(chartBox.querySelector("img"), chartUrls(code, "day"), code);
               chartBox.classList.add("open");
             }
           };
