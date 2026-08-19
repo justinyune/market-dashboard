@@ -85,7 +85,7 @@ for tag, url in FUT_CANDIDATES:
         fut_debug.append(tag + ": " + str(e)[:60])
 
 if fut_item:
-    items.insert(2, fut_item)  # 코스닥 지수 앞에 삽입
+    items.insert(0, fut_item)  # 패널 맨 위에 표시
 
 kst = datetime.now(timezone(timedelta(hours=9)))
 out = {"updated": kst.strftime("%m/%d %H:%M"), "items": items, "fut_debug": fut_debug}

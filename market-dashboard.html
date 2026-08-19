@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JUSTIN's Market Dashboard</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #161b22;
+      --text: #e6e8eb;
+      --muted: #8a919c;
+      --accent: #3d9bff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+    }
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 4px 4px 14px;
+      border-bottom: 1px solid #232a33;
+      margin-bottom: 14px;
+    }
+    header h1 {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    header h1 span { color: var(--accent); }
+    header .clock {
+      font-size: 13px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .kr-panel {
+      background: var(--panel);
+      border: 1px solid #232a33;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      font-variant-numeric: tabular-nums;
+    }
+    .kr-panel .kr-head {
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      border-bottom: 1px solid #232a33;
+    }
+    .kr-row {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 11px 18px;
+      font-size: 15px;
+      border-bottom: 1px solid #1c232c;
+    }
+    .kr-row:last-child { border-bottom: none; }
+    .kr-row .nm { font-weight: 600; font-size: 14px; }
+    .kr-row .pr, .kr-row .df, .kr-row .pc { text-align: right; }
+    .kr-note {
+      padding: 8px 18px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+    .up { color: #ef5350; }
+    .down { color: #3d9bff; }
+    .flat { color: var(--muted); }
+    .kr-row.clickable { cursor: pointer; }
+    .kr-row.clickable:hover { background: #1a212b; }
+    .kr-chart {
+      display: none;
+      padding: 10px 18px 16px;
+      border-bottom: 1px solid #1c232c;
+    }
+    .kr-chart.open { display: block; }
+    .kr-chart .tabs { margin-bottom: 8px; }
+    .kr-chart .tabs button {
+      background: #232a33;
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      padding: 4px 12px;
+      margin-right: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .kr-chart .tabs button.on { background: var(--accent); color: #fff; }
+    .kr-chart img {
+      width: 100%;
+      max-width: 700px;
+      background: #fff;
+      border-radius: 8px;
+      display: block;
+    }
+    .chart-panel {
+      background: var(--panel);
+      border: 1px solid #232a33;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    .chart-panel .cp-head {
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      border-bottom: 1px solid #232a33;
+    }
+    .widget-panel {
+      background: var(--panel);
+      border: 1px solid #232a33;
+      border-radius: 10px;
+      overflow: hidden;
+      flex: 1;
+    }
+    footer {
+      margin-top: 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+      padding-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>JUSTIN's <span>MarketDashboard</span></h1>
+      <div class="clock" id="clock"></div>
+    </header>
+
+    <div class="kr-panel">
+      <div class="kr-head">🇰🇷 한국 관심종목 · 코스닥</div>
+      <div id="kr-rows">
+        <div class="kr-row"><span class="nm">로딩 중...</span><span class="pr"></span><span class="df"></span><span class="pc"></span></div>
+      </div>
+      <div class="kr-note" id="kr-note">Yahoo Finance · 지연 시세일 수 있음</div>
+    </div>
+
+    <div class="widget-panel">
+      <!-- TradingView Market Data Widget BEGIN -->
+      <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container__widget"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
+        {
+          "width": "100%",
+          "height": 1250,
+          "symbolsGroups": [
+            {
+              "name": "미국 지수",
+              "symbols": [
+                { "name": "FOREXCOM:DJI", "displayName": "다우존스" },
+                { "name": "FOREXCOM:SPXUSD", "displayName": "S&P 500" },
+                { "name": "NASDAQ:ONEQ", "displayName": "나스닥 종합 (ONEQ)" },
+                { "name": "FOREXCOM:NSXUSD", "displayName": "나스닥 100 (24H)" },
+                { "name": "NASDAQ:SOXX", "displayName": "필라델피아 반도체 (SOXX)" },
+                { "name": "CAPITALCOM:VIX", "displayName": "VIX" }
+              ]
+            },
+            {
+              "name": "한국 관련",
+              "symbols": [
+                { "name": "INDEX:KSIC", "displayName": "코스피" },
+                { "name": "AMEX:EWY", "displayName": "EWY (MSCI Korea)" },
+                { "name": "CBOE:DRAM", "displayName": "DRAM (메모리 ETF)" }
+              ]
+            },
+            {
+              "name": "환율",
+              "symbols": [
+                { "name": "CAPITALCOM:DXY", "displayName": "달러인덱스" },
+                { "name": "FX_IDC:USDKRW", "displayName": "달러/원" },
+                { "name": "FX:USDJPY", "displayName": "달러/엔" },
+                { "name": "FX_IDC:USDCNH", "displayName": "달러/위안 (역외)" },
+                { "name": "FX:EURUSD", "displayName": "유로/달러" },
+                { "name": "FX:GBPUSD", "displayName": "파운드/달러" }
+              ]
+            },
+            {
+              "name": "미국 국채 금리",
+              "symbols": [
+                { "name": "FRED:DGS2", "displayName": "2년물 (전일)" },
+                { "name": "FRED:DGS5", "displayName": "5년물 (전일)" },
+                { "name": "FRED:DGS10", "displayName": "10년물 (전일)" },
+                { "name": "FRED:DGS30", "displayName": "30년물 (전일)" }
+              ]
+            },
+            {
+              "name": "원자재",
+              "symbols": [
+                { "name": "TVC:USOIL", "displayName": "WTI" },
+                { "name": "TVC:UKOIL", "displayName": "브렌트유" },
+                { "name": "CMCMARKETS:GOLD", "displayName": "금" },
+                { "name": "TVC:SILVER", "displayName": "은" }
+              ]
+            }
+          ],
+          "showSymbolLogo": true,
+          "isTransparent": true,
+          "colorTheme": "dark",
+          "locale": "kr"
+        }
+        </script>
+      </div>
+      <!-- TradingView Market Data Widget END -->
+    </div>
+
+    <div class="chart-panel">
+      <div class="cp-head">📈 차트 · 탭을 눌러 전환</div>
+      <!-- TradingView Symbol Overview Widget BEGIN -->
+      <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container__widget"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js" async>
+        {
+          "symbols": [
+            ["다우존스", "FOREXCOM:DJI|3M"],
+            ["S&P 500", "FOREXCOM:SPXUSD|3M"],
+            ["나스닥 100", "FOREXCOM:NSXUSD|3M"],
+            ["SOXX", "NASDAQ:SOXX|3M"],
+            ["VIX", "CAPITALCOM:VIX|3M"],
+            ["코스피", "INDEX:KSIC|3M"],
+            ["EWY", "AMEX:EWY|3M"],
+            ["DRAM", "CBOE:DRAM|3M"],
+            ["달러/원", "FX_IDC:USDKRW|3M"],
+            ["달러/엔", "FX:USDJPY|3M"],
+            ["달러인덱스", "CAPITALCOM:DXY|3M"],
+            ["WTI", "TVC:USOIL|3M"],
+            ["금", "CMCMARKETS:GOLD|3M"]
+          ],
+          "chartOnly": false,
+          "width": "100%",
+          "height": 500,
+          "locale": "kr",
+          "colorTheme": "dark",
+          "autosize": false,
+          "showVolume": false,
+          "hideDateRanges": false,
+          "hideMarketStatus": false,
+          "hideSymbolLogo": false,
+          "scalePosition": "right",
+          "scaleMode": "Normal",
+          "fontFamily": "-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif",
+          "fontSize": "10",
+          "noTimeScale": false,
+          "valuesTracking": "1",
+          "changeMode": "price-and-percent",
+          "chartType": "area",
+          "lineWidth": 2,
+          "dateRanges": ["1d|5", "1w|30", "1m|60", "3m|1D", "12m|1D", "all|1M"]
+        }
+        </script>
+      </div>
+      <!-- TradingView Symbol Overview Widget END -->
+    </div>
+
+    <footer>Data by TradingView · 일부 심볼은 거래소 정책에 따라 지연 시세일 수 있습니다</footer>
+  </div>
+
+  <script>
+    function tick() {
+      const now = new Date();
+      const kst = now.toLocaleString("ko-KR", {
+        timeZone: "Asia/Seoul",
+        month: "long", day: "numeric", weekday: "short",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+      });
+      document.getElementById("clock").textContent = kst + " KST";
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    const KR_CODES = { "삼성전자": "005930", "SK하이닉스": "000660", "코스닥 지수": "KOSDAQ" };
+    const openCharts = {};
+
+    function chartUrls(code, period) {
+      const t = Math.floor(Date.now() / 60000);
+      if (code === "KOSDAQ" || code === "FUT") {
+        if (period === "intra") {
+          return ["https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t];
+        }
+        return [
+          "https://ssl.pstatic.net/imgfinance/chart/mobile/candle/" + period + "/" + code + "_end.png?t=" + t,
+          "https://ssl.pstatic.net/imgfinance/chart/sise/" + period + "/" + code + ".png?t=" + t
+        ];
+      }
+      if (period === "intra") {
+        return [
+          "https://ssl.pstatic.net/imgfinance/chart/item/area/day/" + code + ".png?t=" + t,
+          "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t
+        ];
+      }
+      return ["https://ssl.pstatic.net/imgfinance/chart/item/candle/" + period + "/" + code + ".png?t=" + t];
+    }
+
+    function loadWithFallback(img, urls, code) {
+      let i = 0;
+      img.style.display = "block";
+      img.onerror = () => {
+        i++;
+        if (i < urls.length) {
+          img.src = urls[i];
+        } else {
+          img.style.display = "none";
+          const fb = img.parentElement.querySelector(".chart-fallback");
+          if (fb) fb.style.display = "block";
+        }
+      };
+      const fb = img.parentElement && img.parentElement.querySelector(".chart-fallback");
+      if (fb) fb.style.display = "none";
+      img.src = urls[0];
+    }
+
+    function makeChartBox(code) {
+      const box = document.createElement("div");
+      box.className = "kr-chart" + (openCharts[code] ? " open" : "");
+      box.dataset.code = code;
+      const periods = [["intra", "당일"], ["day", "일봉"], ["week", "주봉"], ["month", "월봉"]];
+      const tabs = document.createElement("div");
+      tabs.className = "tabs";
+      const img = document.createElement("img");
+      img.alt = "차트";
+      const fallback = document.createElement("div");
+      fallback.className = "chart-fallback";
+      fallback.style.cssText = "display:none;font-size:13px;color:var(--muted);padding:6px 2px;";
+      const link = code === "FUT"
+        ? "https://www.tradingview.com/symbols/KRX-K2I1!/"
+        : (code === "KOSDAQ"
+          ? "https://m.stock.naver.com/domestic/index/KOSDAQ/total"
+          : "https://m.stock.naver.com/domestic/stock/" + code + "/total");
+      fallback.innerHTML = '차트 이미지를 불러올 수 없습니다 · <a href="' + link + '" target="_blank" style="color:var(--accent)">' + (code === 'FUT' ? 'TradingView에서 보기 (야간 차트 포함)' : '네이버 증권에서 보기') + ' ↗</a>';
+      const current = openCharts[code] || "intra";
+      periods.forEach(([pv, label]) => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        if (pv === current) b.className = "on";
+        b.onclick = (e) => {
+          e.stopPropagation();
+          openCharts[code] = pv;
+          tabs.querySelectorAll("button").forEach(x => x.className = "");
+          b.className = "on";
+          loadWithFallback(img, chartUrls(code, pv), code);
+        };
+        tabs.appendChild(b);
+      });
+      box.appendChild(tabs);
+      box.appendChild(img);
+      box.appendChild(fallback);
+      loadWithFallback(img, chartUrls(code, current), code);
+      return box;
+    }
+
+    async function renderKr() {
+      const box = document.getElementById("kr-rows");
+      const note = document.getElementById("kr-note");
+      let data = null;
+      try {
+        const res = await fetch("quotes.json?t=" + Date.now(), { cache: "no-store" });
+        if (res.ok) data = await res.json();
+      } catch (e) { /* ignore */ }
+
+      if (!data || !data.items) {
+        note.textContent = "시세 파일 대기 중 (Actions 첫 실행 전이거나 일시 오류)";
+        return;
+      }
+
+      box.innerHTML = "";
+      data.items.forEach(item => {
+        const code = item.code || KR_CODES[item.name];
+        const row = document.createElement("div");
+        row.className = "kr-row" + (code ? " clickable" : "");
+        if (item.error !== undefined) {
+          row.innerHTML = '<span class="nm">' + item.name + '</span><span class="pr flat">—</span><span class="df flat">조회 실패</span><span class="pc"></span>';
+        } else {
+          const fmt = n => item.krw
+            ? Math.round(n).toLocaleString("ko-KR")
+            : n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const cls = item.diff > 0 ? "up" : (item.diff < 0 ? "down" : "flat");
+          const sign = item.diff > 0 ? "+" : "";
+          row.innerHTML =
+            '<span class="nm">' + item.name + ' <span style="font-size:11px;color:var(--muted)">▾</span></span>' +
+            '<span class="pr">' + fmt(item.price) + '</span>' +
+            '<span class="df ' + cls + '">' + sign + fmt(item.diff) + '</span>' +
+            '<span class="pc ' + cls + '">' + sign + item.pct.toFixed(2) + '%</span>';
+        }
+        box.appendChild(row);
+        if (code) {
+          const chartBox = makeChartBox(code);
+          row.onclick = () => {
+            if (openCharts[code]) {
+              delete openCharts[code];
+              chartBox.classList.remove("open");
+            } else {
+              openCharts[code] = "intra";
+              loadWithFallback(chartBox.querySelector("img"), chartUrls(code, "intra"), code);
+              chartBox.classList.add("open");
+            }
+          };
+          box.appendChild(chartBox);
+        }
+      });
+      note.textContent = "네이버 증권 · " + data.updated + " 기준 · 5분 주기 갱신 · 행 클릭 시 차트";
+    }
+    renderKr();
+    setInterval(renderKr, 120000);
+  </script>
+</body>
+</html>
