@@ -290,10 +290,18 @@
     function chartUrls(code, period) {
       const t = Math.floor(Date.now() / 60000);
       if (code === "KOSDAQ") {
+        if (period === "intra") {
+          return ["https://ssl.pstatic.net/imgfinance/chart/mobile/day/KOSDAQ_end.png?t=" + t];
+        }
         return [
-          "https://ssl.pstatic.net/imgfinance/chart/mobile/" + period + "/KOSDAQ_end.png?t=" + t,
-          "https://ssl.pstatic.net/imgfinance/chart/mobile/mini/KOSDAQ_end.png?t=" + t,
+          "https://ssl.pstatic.net/imgfinance/chart/mobile/candle/" + period + "/KOSDAQ_end.png?t=" + t,
           "https://ssl.pstatic.net/imgfinance/chart/sise/" + period + "/KOSDAQ.png?t=" + t
+        ];
+      }
+      if (period === "intra") {
+        return [
+          "https://ssl.pstatic.net/imgfinance/chart/item/area/day/" + code + ".png?t=" + t,
+          "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t
         ];
       }
       return ["https://ssl.pstatic.net/imgfinance/chart/item/candle/" + period + "/" + code + ".png?t=" + t];
@@ -321,9 +329,7 @@
       const box = document.createElement("div");
       box.className = "kr-chart" + (openCharts[code] ? " open" : "");
       box.dataset.code = code;
-      const periods = code === "KOSDAQ"
-        ? [["day", "일"], ["week", "주"], ["month", "월"]]
-        : [["day", "일봉"], ["week", "주봉"], ["month", "월봉"]];
+      const periods = [["intra", "당일"], ["day", "일봉"], ["week", "주봉"], ["month", "월봉"]];
       const tabs = document.createElement("div");
       tabs.className = "tabs";
       const img = document.createElement("img");
@@ -335,7 +341,7 @@
         ? "https://m.stock.naver.com/domestic/index/KOSDAQ/total"
         : "https://m.stock.naver.com/domestic/stock/" + code + "/total";
       fallback.innerHTML = '차트 이미지를 불러올 수 없습니다 · <a href="' + link + '" target="_blank" style="color:var(--accent)">네이버 증권에서 보기 ↗</a>';
-      const current = openCharts[code] || "day";
+      const current = openCharts[code] || "intra";
       periods.forEach(([pv, label]) => {
         const b = document.createElement("button");
         b.textContent = label;
@@ -397,8 +403,8 @@
               delete openCharts[code];
               chartBox.classList.remove("open");
             } else {
-              openCharts[code] = "day";
-              loadWithFallback(chartBox.querySelector("img"), chartUrls(code, "day"), code);
+              openCharts[code] = "intra";
+              loadWithFallback(chartBox.querySelector("img"), chartUrls(code, "intra"), code);
               chartBox.classList.add("open");
             }
           };
