@@ -43,18 +43,44 @@ for code_, name in INDICES:
     except Exception as e:
         items.append({"name": name, "code": code_, "group": "index", "error": str(e)[:60]})
 
-# --- 코스피200 선물 ---
-try:
+# --- 코스피200 선물 (야간 포함: TradingView 1순위, 네이버 폴백) ---
+def fut_tradingview():
+    url = ("https://scanner.tradingview.com/symbol"
+           "?symbol=KRX%3AK2I1!&fields=lp,ch,chp&no_404=true")
+    d = get_json(url)
+    price, ch, chp = d["lp"], d["ch"], d["chp"]
+    if price is None:
+        raise Exception("lp is null")
+    return {
+        "name": "코스피200 선물", "code": "FUT", "group": "index",
+        "price": float(price),
+        "diff": float(ch if ch is not None else 0),
+        "pct": float(chp if chp is not None else 0),
+        "krw": False,
+    }
+
+
+def fut_naver():
     d = get_json("https://polling.finance.naver.com/api/realtime/domestic/index/FUT")["datas"][0]
-    items.append({
+    return {
         "name": "코스피200 선물", "code": "FUT", "group": "index",
         "price": num(d["closePrice"]),
         "diff": num(d["compareToPreviousClosePrice"]),
         "pct": num(d["fluctuationsRatio"]),
         "krw": False,
-    })
-except Exception as e:
-    debug.append("FUT: " + str(e)[:60])
+    }
+
+
+fut_item = None
+for tag, fn in [("tv", fut_tradingview), ("naver", fut_naver)]:
+    try:
+        fut_item = fn()
+        debug.append(f"FUT: {tag} OK")
+        break
+    except Exception as e:
+        debug.append(f"FUT: {tag} " + str(e)[:50])
+if fut_item:
+    items.append(fut_item)
 
 # --- 관심종목 ---
 for code_, name in STOCKS:
