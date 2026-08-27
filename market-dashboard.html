@@ -151,14 +151,6 @@
       </div>
     </div>
 
-    <div class="kr-panel">
-      <div class="kr-head">🇰🇷 관심종목</div>
-      <div id="kr-stk-rows">
-        <div class="kr-row"><span class="nm">로딩 중...</span><span class="pr"></span><span class="df"></span><span class="pc"></span></div>
-      </div>
-      <div class="kr-note" id="kr-note">네이버 증권</div>
-    </div>
-
     <div class="widget-panel">
       <!-- TradingView Market Data Widget BEGIN -->
       <div class="tradingview-widget-container">
@@ -275,6 +267,14 @@
       <!-- TradingView Symbol Overview Widget END -->
     </div>
 
+    <div class="kr-panel" style="margin-top:14px">
+      <div class="kr-head">🇰🇷 관심종목</div>
+      <div id="kr-stk-rows">
+        <div class="kr-row"><span class="nm">로딩 중...</span><span class="pr"></span><span class="df"></span><span class="pc"></span></div>
+      </div>
+      <div class="kr-note" id="kr-note">네이버 증권</div>
+    </div>
+
     <footer>Data by TradingView · 일부 심볼은 거래소 정책에 따라 지연 시세일 수 있습니다</footer>
   </div>
 
@@ -338,35 +338,138 @@
       return out;
     }
 
-    // ----- SVG 캔들차트 -----
+    // ----- 선물 인트라데이 차트 (주간 09:00 ~ 야간 익일 05:00, KST) -----
+    function renderFutIntra(container) {
+      const pts = (krData && krData.fut_intraday) || [];
+      if (pts.length < 2) return false;
+      const base = krData.fut_base;
+
+      const W = 700, H = 320, padL = 8, padR = 64, padT = 14, padB = 26;
+      // x축: 세션 시작 09:00 = 0h ~ 익일 05:00 = 20h
+      const t0 = pts[0].ts - ((pts[0].ts + 9 * 3600) % 86400 - 9 * 3600); // 세션일 09:00 epoch
+      const sessionStart = (() => {
+        const d = new Date(pts[0].ts * 1000);
+        const kstH = (d.getUTCHours() + 9) % 24;
+        const day = new Date(d.getTime());
+        if (kstH < 9) day.setUTCDate(day.getUTCDate() - 1);
+        day.setUTCHours(0, 0, 0, 0); // UTC 0:00 = KST 9:00
+        return day.getTime() / 1000;
+      })();
+      const spanS = 20 * 3600;
+      const xOf = ts => padL + Math.min(1, Math.max(0, (ts - sessionStart) / spanS)) * (W - padL - padR);
+
+      const vals = pts.map(q => q.p).concat(base ? [base] : []);
+      const hi = Math.max(...vals), lo = Math.min(...vals);
+      const pad = (hi - lo) * 0.1 || 1;
+      const yHi = hi + pad, yLo = lo - pad;
+      const y = v => padT + (yHi - v) / (yHi - yLo) * (H - padT - padB);
+
+      let el = "";
+      // 야간 구간 음영 (18:00~) = 9h 지점부터 끝까지
+      const nx = padL + (9 * 3600 / spanS) * (W - padL - padR);
+      el += '<rect x="' + nx + '" y="' + padT + '" width="' + (W - padR - nx) + '" height="' + (H - padT - padB) + '" fill="#1b2230" opacity="0.55"/>';
+      el += '<text x="' + (nx + 5) + '" y="' + (padT + 13) + '" fill="#5d6673" font-size="11">야간</text>';
+
+      // 기준선 (전일 정산가)
+      if (base) {
+        el += '<line x1="' + padL + '" y1="' + y(base) + '" x2="' + (W - padR) + '" y2="' + y(base) + '" stroke="#8a919c" stroke-width="1" stroke-dasharray="2,3"/>';
+        el += '<text x="' + (W - padR + 6) + '" y="' + (y(base) + 4) + '" fill="#8a919c" font-size="11">' + base.toFixed(2) + '</text>';
+      }
+
+      // 라인 (30분 이상 벌어진 구간은 끊어서 = 휴장 갭)
+      const last = pts[pts.length - 1];
+      const col = base ? (last.p >= base ? UP : DOWN) : "#e6e8eb";
+      let path = "", prevTs = null;
+      pts.forEach(q => {
+        const cmd = (prevTs !== null && q.ts - prevTs < 1800) ? "L" : "M";
+        path += cmd + xOf(q.ts).toFixed(1) + "," + y(q.p).toFixed(1);
+        prevTs = q.ts;
+      });
+      el += '<path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="1.8"/>';
+      el += '<circle cx="' + xOf(last.ts) + '" cy="' + y(last.p) + '" r="3" fill="' + col + '"/>';
+      el += '<text x="' + (W - padR + 6) + '" y="' + (y(last.p) + 4) + '" fill="' + col + '" font-size="12" font-weight="bold">' + last.p.toFixed(2) + '</text>';
+
+      // x축 눈금: 09/12/15/18/21/24/03/05시
+      [[0,"09시"],[3,"12시"],[6,"15시"],[9,"18시"],[12,"21시"],[15,"24시"],[18,"03시"],[20,"05시"]].forEach(([h, lab]) => {
+        const x = padL + (h * 3600 / spanS) * (W - padL - padR);
+        el += '<line x1="' + x + '" y1="' + padT + '" x2="' + x + '" y2="' + (H - padB) + '" stroke="#232a33" stroke-width="0.5"/>';
+        el += '<text x="' + x + '" y="' + (H - 8) + '" fill="#8a919c" font-size="11" text-anchor="middle">' + lab + '</text>';
+      });
+
+      container.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:700px;background:#11151b;border:1px solid #232a33;border-radius:8px;display:block">' + el + '</svg>' +
+        '<div style="font-size:11px;color:var(--muted);padding:4px 2px;">주간 09:00~15:45 · 야간 18:00~익일 05:00 (KST) · 5분 수집</div>';
+      return true;
+    }
+
+    // ----- SVG 캔들차트 (이동평균선 포함) -----
+    const MA_SET = { day: [[5, "#26a69a"], [20, "#ef5350"], [60, "#ff9800"], [120, "#ab47bc"], [240, "#78909c"]],
+                     week: [[5, "#26a69a"], [20, "#ef5350"], [60, "#ff9800"]],
+                     month: [[5, "#26a69a"], [12, "#ff9800"]] };
+
     function renderCandles(container, allBars, mode) {
       const counts = { day: 60, week: 52, month: 24 };
-      const bars = aggregate(allBars, mode).slice(-counts[mode]);
+      const agg = aggregate(allBars, mode);
+      const maDefs = MA_SET[mode] || [];
+      const maxMa = maDefs.length ? Math.max(...maDefs.map(m => m[0])) : 0;
+      const n = counts[mode];
+      const bars = agg.slice(-n);
       if (!bars.length) return false;
-      const W = 700, H = 320, padL = 8, padR = 64, padT = 12, padB = 22;
+      const offset = agg.length - bars.length;  // 전체 배열에서 표시 구간 시작 위치
+
+      const W = 700, H = 340, padL = 8, padR = 64, padT = 26, padB = 22;
       const hi = Math.max(...bars.map(b => b.h));
       const lo = Math.min(...bars.map(b => b.l));
       const span = (hi - lo) || 1;
       const y = v => padT + (hi - v) / span * (H - padT - padB);
       const cw = (W - padL - padR) / bars.length;
       const bw = Math.max(2, cw * 0.62);
+      const xAt = i => padL + i * cw + cw / 2;
       let el = "";
+
+      // 눈금
+      const fmt = v => v >= 1000 ? v.toLocaleString("ko-KR", { maximumFractionDigits: 0 }) : v.toFixed(2);
+      [hi, (hi + lo) / 2, lo].forEach(v => {
+        el += '<line x1="' + padL + '" y1="' + y(v) + '" x2="' + (W - padR) + '" y2="' + y(v) + '" stroke="#2a323d" stroke-width="0.5" stroke-dasharray="3,4"/>';
+        el += '<text x="' + (W - padR + 6) + '" y="' + (y(v) + 4) + '" fill="#8a919c" font-size="12">' + fmt(v) + '</text>';
+      });
+
+      // 이동평균선 (표시 구간 이전 데이터까지 활용해 계산)
+      maDefs.forEach(([period, color]) => {
+        let path = "", started = false;
+        for (let i = 0; i < bars.length; i++) {
+          const gi = offset + i;  // 전체 배열 인덱스
+          if (gi + 1 < period) continue;
+          let sum = 0;
+          for (let k = gi - period + 1; k <= gi; k++) sum += agg[k].c;
+          const v = sum / period;
+          if (v > hi || v < lo) { /* 범위 밖이어도 그리되 클리핑은 생략 */ }
+          path += (started ? "L" : "M") + xAt(i).toFixed(1) + "," + y(v).toFixed(1);
+          started = true;
+        }
+        if (path) el += '<path d="' + path + '" fill="none" stroke="' + color + '" stroke-width="1.3" opacity="0.9"/>';
+      });
+
+      // 캔들
       bars.forEach((b, i) => {
-        const x = padL + i * cw + cw / 2;
+        const x = xAt(i);
         const up = b.c >= b.o;
         const col = up ? UP : DOWN;
         el += '<line x1="' + x + '" y1="' + y(b.h) + '" x2="' + x + '" y2="' + y(b.l) + '" stroke="' + col + '" stroke-width="1"/>';
         const top = y(Math.max(b.o, b.c)), bot = y(Math.min(b.o, b.c));
         el += '<rect x="' + (x - bw / 2) + '" y="' + top + '" width="' + bw + '" height="' + Math.max(1, bot - top) + '" fill="' + col + '"/>';
       });
-      const fmt = v => v >= 1000 ? v.toLocaleString("ko-KR", { maximumFractionDigits: 0 }) : v.toFixed(2);
-      [hi, (hi + lo) / 2, lo].forEach(v => {
-        el += '<line x1="' + padL + '" y1="' + y(v) + '" x2="' + (W - padR) + '" y2="' + y(v) + '" stroke="#2a323d" stroke-width="0.5" stroke-dasharray="3,4"/>';
-        el += '<text x="' + (W - padR + 6) + '" y="' + (y(v) + 4) + '" fill="#8a919c" font-size="12">' + fmt(v) + '</text>';
+
+      // 범례 + 기간
+      let lx = padL + 2;
+      maDefs.forEach(([period, color]) => {
+        el += '<rect x="' + lx + '" y="8" width="9" height="9" fill="' + color + '"/>';
+        el += '<text x="' + (lx + 13) + '" y="16" fill="#8a919c" font-size="11">' + period + '</text>';
+        lx += 13 + String(period).length * 7 + 14;
       });
       const first = bars[0].d.slice(2), last = bars[bars.length - 1].d.slice(2);
       el += '<text x="' + padL + '" y="' + (H - 6) + '" fill="#8a919c" font-size="11">' + first + '</text>';
       el += '<text x="' + (W - padR) + '" y="' + (H - 6) + '" fill="#8a919c" font-size="11" text-anchor="end">' + last + '</text>';
+
       container.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:700px;background:#11151b;border:1px solid #232a33;border-radius:8px;display:block">' + el + '</svg>';
       return true;
     }
@@ -391,6 +494,7 @@
         openCharts[code] = period;
         tabs.querySelectorAll("button").forEach(b => b.className = b.dataset.p === period ? "on" : "");
         if (period === "intra") {
+          if (code === "FUT" && renderFutIntra(cv)) return;
           const img = document.createElement("img");
           img.alt = "차트";
           img.onerror = () => { cv.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 2px;">차트를 불러올 수 없습니다 · ' + fbLink + '</div>'; };

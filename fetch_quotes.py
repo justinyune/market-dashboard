@@ -154,7 +154,51 @@ for code_ in HISTORY_CODES:
         history[code_] = bars
 
 kst = datetime.now(timezone(timedelta(hours=9)))
-out = {"updated": kst.strftime("%m/%d %H:%M"), "items": items, "history": history, "debug": debug}
+
+# --- 선물 인트라데이 누적 (주간 09:00~15:45 + 야간 18:00~다음날 05:00) ---
+def in_session(dt):
+    hm = dt.hour * 60 + dt.minute
+    day_s, day_e = 9 * 60, 15 * 60 + 50      # 주간 (마감 여유 5분)
+    night_s, night_e = 18 * 60, 5 * 60 + 5   # 야간 (자정 걸침)
+    return (day_s <= hm <= day_e) or (hm >= night_s) or (hm <= night_e)
+
+
+fut_intraday = []
+try:
+    with open("quotes.json", encoding="utf-8") as f:
+        prev = json.load(f)
+    fut_intraday = prev.get("fut_intraday", [])
+except Exception:
+    pass
+
+# 세션 시작(직전 09:00 KST) 이전 포인트 제거
+session_start = kst.replace(hour=9, minute=0, second=0, microsecond=0)
+if kst.hour < 9:
+    session_start -= timedelta(days=1)
+start_ts = int(session_start.timestamp())
+fut_intraday = [pt for pt in fut_intraday if pt.get("ts", 0) >= start_ts]
+
+if fut_item and in_session(kst):
+    label = kst.strftime("%H:%M")
+    if not fut_intraday or fut_intraday[-1].get("t") != label:
+        fut_intraday.append({
+            "ts": int(kst.timestamp()),
+            "t": label,
+            "p": fut_item["price"],
+        })
+        # 기준선(전일 정산가) 저장: 현재가 - 변동
+        base = round(fut_item["price"] - fut_item["diff"], 2)
+    else:
+        base = None
+else:
+    base = None
+
+fut_base = None
+if fut_item:
+    fut_base = round(fut_item["price"] - fut_item["diff"], 2)
+
+out = {"updated": kst.strftime("%m/%d %H:%M"), "items": items, "history": history,
+       "fut_intraday": fut_intraday, "fut_base": fut_base, "debug": debug}
 
 with open("quotes.json", "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False)
