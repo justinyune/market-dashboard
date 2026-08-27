@@ -4,41 +4,41 @@ from datetime import datetime, timezone, timedelta
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-# (코드, 이름, 섹터ID)
+# (코드, 이름, 섹터ID, 소분류)
 STOCKS = [
-    ("005930", "삼성전자", "tech"),
-    ("000660", "SK하이닉스", "tech"),
-    ("042700", "한미반도체", "tech"),
-    ("403870", "HPSP", "tech"),
-    ("138080", "오이솔루션", "tech"),
-    ("012450", "한화에어로스페이스", "ind"),
-    ("079550", "LIG넥스원", "ind"),
-    ("329180", "HD현대중공업", "ind"),
-    ("034020", "두산에너빌리티", "ind"),
-    ("267260", "HD현대일렉트릭", "ind"),
-    ("010120", "LS ELECTRIC", "ind"),
-    ("035420", "NAVER", "comm"),
-    ("035720", "카카오", "comm"),
-    ("017670", "SK텔레콤", "comm"),
-    ("030200", "KT", "comm"),
-    ("005380", "현대차", "cyc"),
-    ("000270", "기아", "cyc"),
-    ("207940", "삼성바이오로직스", "health"),
-    ("068270", "셀트리온", "health"),
-    ("196170", "알테오젠", "health"),
-    ("105560", "KB금융", "fin"),
-    ("055550", "신한지주", "fin"),
-    ("086790", "하나금융지주", "fin"),
-    ("010950", "S-Oil", "energy"),
-    ("078930", "GS", "energy"),
-    ("015760", "한국전력", "util"),
-    ("036460", "한국가스공사", "util"),
-    ("005490", "POSCO홀딩스", "mat"),
-    ("010130", "고려아연", "mat"),
-    ("051910", "LG화학", "mat"),
-    ("033780", "KT&G", "def"),
-    ("271560", "오리온", "def"),
-    ("088980", "맥쿼리인프라", "re"),
+    ("005930", "삼성전자", "tech", "반도체"),
+    ("000660", "SK하이닉스", "tech", "반도체"),
+    ("042700", "한미반도체", "tech", "반도체 장비"),
+    ("403870", "HPSP", "tech", "반도체 장비"),
+    ("138080", "오이솔루션", "tech", "통신장비-CPO"),
+    ("012450", "한화에어로스페이스", "ind", "항공우주-방산"),
+    ("079550", "LIG넥스원", "ind", "항공우주-방산"),
+    ("329180", "HD현대중공업", "ind", "항공우주-방산"),
+    ("034020", "두산에너빌리티", "ind", "특수기계-원전"),
+    ("267260", "HD현대일렉트릭", "ind", "전기장비"),
+    ("010120", "LS ELECTRIC", "ind", "전기장비"),
+    ("035420", "NAVER", "comm", "인터넷 콘텐츠"),
+    ("035720", "카카오", "comm", "인터넷 콘텐츠"),
+    ("017670", "SK텔레콤", "comm", "통신사"),
+    ("030200", "KT", "comm", "통신사"),
+    ("005380", "현대차", "cyc", "자동차"),
+    ("000270", "기아", "cyc", "자동차"),
+    ("207940", "삼성바이오로직스", "health", "바이오"),
+    ("068270", "셀트리온", "health", "바이오"),
+    ("196170", "알테오젠", "health", "바이오"),
+    ("105560", "KB금융", "fin", "은행"),
+    ("055550", "신한지주", "fin", "은행"),
+    ("086790", "하나금융지주", "fin", "은행"),
+    ("010950", "S-Oil", "energy", "정유"),
+    ("078930", "GS", "energy", "정유"),
+    ("015760", "한국전력", "util", "전력-가스"),
+    ("036460", "한국가스공사", "util", "전력-가스"),
+    ("005490", "POSCO홀딩스", "mat", "금속"),
+    ("010130", "고려아연", "mat", "금속"),
+    ("051910", "LG화학", "mat", "화학"),
+    ("033780", "KT&G", "def", "필수소비재"),
+    ("271560", "오리온", "def", "필수소비재"),
+    ("088980", "맥쿼리인프라", "re", "인프라"),
 ]
 INDICES = [
     ("KOSPI", "코스피"),
@@ -115,14 +115,17 @@ if fut_item:
     items.append(fut_item)
 
 # --- 관심종목: 배치 조회(콤마 결합, 15개씩) -> 실패 시 개별 폴백 ---
-def stock_item(d, code_, name, sector):
-    return {
+def stock_item(d, code_, name, sector, sub=None):
+    it = {
         "name": name, "code": code_, "group": "stock", "sector": sector,
         "price": num(d["closePrice"]),
         "diff": num(d["compareToPreviousClosePrice"]),
         "pct": num(d["fluctuationsRatio"]),
         "krw": True,
     }
+    if sub:
+        it["sub"] = sub
+    return it
 
 
 # 내 매수 관심 (한국) — 여기에 (코드, 이름) 추가/삭제
@@ -134,7 +137,7 @@ MY_STOCKS = [
 CHUNK = 15
 for i in range(0, len(STOCKS), CHUNK):
     chunk = STOCKS[i:i + CHUNK]
-    codes = ",".join(c for c, _, _ in chunk)
+    codes = ",".join(c for c, _, _, _ in chunk)
     got = {}
     try:
         datas = get_json(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{codes}")["datas"]
@@ -143,7 +146,7 @@ for i in range(0, len(STOCKS), CHUNK):
         debug.append(f"batch{i//CHUNK}: OK ({len(datas)})")
     except Exception as e:
         debug.append(f"batch{i//CHUNK}: " + str(e)[:50])
-    for code_, name, sector in chunk:
+    for code_, name, sector, sub in chunk:
         d = got.get(code_)
         if d is None:
             try:
@@ -152,7 +155,7 @@ for i in range(0, len(STOCKS), CHUNK):
                 items.append({"name": name, "code": code_, "group": "stock", "sector": sector, "error": str(e)[:50]})
                 continue
         try:
-            items.append(stock_item(d, code_, name, sector))
+            items.append(stock_item(d, code_, name, sector, sub))
         except Exception as e:
             items.append({"name": name, "code": code_, "group": "stock", "sector": sector, "error": str(e)[:50]})
 

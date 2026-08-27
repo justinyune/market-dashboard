@@ -67,6 +67,8 @@
     .blk-label { padding: 9px 18px 7px; font-size: 12px; font-weight: 700; color: var(--muted);
       border-top: 1px solid #1c232c; background: #131820; }
     .us-widget { min-height: 60px; }
+    .kr-sub { padding: 8px 18px 6px; font-size: 12px; font-weight: 700; color: var(--muted);
+      background: #10151c; border-bottom: 1px solid #1c232c; }
     .stk-note { font-size: 11px; color: var(--muted); text-align: right; padding: 0 4px 10px; }
 
     footer { margin-top: 12px; font-size: 11px; color: var(--muted); text-align: right; padding-right: 4px; }
@@ -581,6 +583,29 @@
       });
     }
 
+    function renderRowsGrouped(container, list) {
+      container.innerHTML = "";
+      const seen = [];
+      const bySub = {};
+      list.forEach(i => {
+        const k = i.sub || "";
+        if (!(k in bySub)) { bySub[k] = []; seen.push(k); }
+        bySub[k].push(i);
+      });
+      const multi = seen.length > 1 || (seen.length === 1 && seen[0] !== "");
+      seen.forEach(k => {
+        if (multi && k) {
+          const h = document.createElement("div");
+          h.className = "kr-sub";
+          h.textContent = k;
+          container.appendChild(h);
+        }
+        const tmp = document.createElement("div");
+        renderRows(tmp, bySub[k]);
+        while (tmp.children.length) container.appendChild(tmp.children[0]);
+      });
+    }
+
     async function renderKr() {
       const note = document.getElementById("kr-note");
       try {
@@ -606,7 +631,7 @@
         const list = bySec[sec.id] || [];
         if (cnt) cnt.textContent = list.length;
         if (el) {
-          if (list.length) renderRows(el, list);
+          if (list.length) renderRowsGrouped(el, list);
           else el.innerHTML = '<div class="kr-row"><span class="nm flat">등록된 한국 종목 없음</span></div>';
         }
       });
