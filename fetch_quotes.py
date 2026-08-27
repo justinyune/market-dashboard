@@ -125,6 +125,12 @@ def stock_item(d, code_, name, sector):
     }
 
 
+# 내 매수 관심 (한국) — 여기에 (코드, 이름) 추가/삭제
+MY_STOCKS = [
+    ("005930", "삼성전자"),
+    ("000660", "SK하이닉스"),
+]
+
 CHUNK = 15
 for i in range(0, len(STOCKS), CHUNK):
     chunk = STOCKS[i:i + CHUNK]
@@ -149,6 +155,31 @@ for i in range(0, len(STOCKS), CHUNK):
             items.append(stock_item(d, code_, name, sector))
         except Exception as e:
             items.append({"name": name, "code": code_, "group": "stock", "sector": sector, "error": str(e)[:50]})
+
+# --- 내 매수 관심 (한국) ---
+if MY_STOCKS:
+    codes = ",".join(c for c, _ in MY_STOCKS)
+    got = {}
+    try:
+        for d in get_json(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{codes}")["datas"]:
+            got[str(d.get("itemCode") or d.get("cd") or "")] = d
+    except Exception as e:
+        debug.append("my-batch: " + str(e)[:50])
+    for code_, name in MY_STOCKS:
+        d = got.get(code_)
+        if d is None:
+            try:
+                d = get_json(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code_}")["datas"][0]
+            except Exception as e:
+                items.append({"name": name, "code": code_, "group": "mystock", "error": str(e)[:50]})
+                continue
+        try:
+            it = stock_item(d, code_, name, "my")
+            it["group"] = "mystock"
+            items.append(it)
+        except Exception as e:
+            items.append({"name": name, "code": code_, "group": "mystock", "error": str(e)[:50]})
+
 
 # --- 지수 일별 시세 (자체 캔들차트용) ---
 import re

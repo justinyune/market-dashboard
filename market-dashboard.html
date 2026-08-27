@@ -81,6 +81,7 @@
 
     <div class="tabs-nav">
       <button data-tab="market" class="on">마켓</button>
+      <button data-tab="my">내 관심종목</button>
       <button data-tab="stocks">관심종목</button>
     </div>
 
@@ -164,6 +165,21 @@
       </div>
     </section>
 
+    <!-- ===================== 내 관심종목 탭 ===================== -->
+    <section id="tab-my" hidden>
+      <div class="stk-note" id="my-note">데이터 로딩 중...</div>
+      <div class="kr-panel">
+        <div class="kr-head">🇺🇸 미국 매수 관심</div>
+        <div class="us-widget" id="usw-my"></div>
+      </div>
+      <div class="kr-panel">
+        <div class="kr-head">🇰🇷 한국 매수 관심</div>
+        <div id="krsec-my">
+          <div class="kr-row"><span class="nm flat">로딩 중...</span></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===================== 관심종목 탭 ===================== -->
     <section id="tab-stocks" hidden>
       <div class="stk-note" id="stk-note">데이터 로딩 중...</div>
@@ -219,6 +235,35 @@
       { id: "re", name: "Real Estate", h: 560, groups: [
         { name: "Top 10", syms: ["NYSE:PLD","NYSE:AMT","NYSE:WELL","NASDAQ:EQIX","NYSE:SPG","NYSE:PSA","NYSE:O","NYSE:DLR","NYSE:CCI","NYSE:CBRE"] } ] }
     ];
+
+    // ===== 내 관심종목 (미국) — 여기에 심볼 추가/삭제 =====
+    const MY_US = [
+      "NASDAQ:NVDA",
+      "NASDAQ:MU"
+    ];
+    let myWidgetInited = false;
+    function buildMyWidget() {
+      if (myWidgetInited || !MY_US.length) return;
+      const host = document.getElementById("usw-my");
+      const cfg = {
+        width: "100%", height: Math.max(160, MY_US.length * 44 + 120),
+        symbolsGroups: [{ name: "매수 관심", symbols: MY_US.map(sym => ({ name: sym })) }],
+        showSymbolLogo: true, isTransparent: true, colorTheme: "dark", locale: "kr"
+      };
+      const box = document.createElement("div");
+      box.className = "tradingview-widget-container";
+      const inner = document.createElement("div");
+      inner.className = "tradingview-widget-container__widget";
+      const sc = document.createElement("script");
+      sc.type = "text/javascript";
+      sc.src = "https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js";
+      sc.async = true;
+      sc.innerHTML = JSON.stringify(cfg);
+      box.appendChild(inner);
+      box.appendChild(sc);
+      host.appendChild(box);
+      myWidgetInited = true;
+    }
 
     // ===== 섹터 아코디언 DOM 생성 =====
     (function buildSectors() {
@@ -280,8 +325,10 @@
         document.querySelectorAll(".tabs-nav button").forEach(b => b.classList.remove("on"));
         btn.classList.add("on");
         document.getElementById("tab-market").hidden = btn.dataset.tab !== "market";
+        document.getElementById("tab-my").hidden = btn.dataset.tab !== "my";
         document.getElementById("tab-stocks").hidden = btn.dataset.tab !== "stocks";
         if (btn.dataset.tab === "stocks") initVisibleWidgets();
+        if (btn.dataset.tab === "my") buildMyWidget();
       };
     });
 
@@ -564,9 +611,17 @@
         }
       });
 
+      const my = krData.items.filter(i => i.group === "mystock");
+      const myEl = document.getElementById("krsec-my");
+      if (myEl) {
+        if (my.length) renderRows(myEl, my);
+        else myEl.innerHTML = '<div class="kr-row"><span class="nm flat">fetch_quotes.py의 MY_STOCKS에 종목을 추가하세요</span></div>';
+      }
+
       const t = "네이버 증권 · " + krData.updated + " 기준 · 5분 주기 갱신 · 행 클릭 시 차트";
       note.textContent = t;
       document.getElementById("stk-note").textContent = t;
+      document.getElementById("my-note").textContent = t;
     }
     renderKr();
     setInterval(renderKr, 120000);
