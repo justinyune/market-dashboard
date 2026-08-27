@@ -4,9 +4,41 @@ from datetime import datetime, timezone, timedelta
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
+# (코드, 이름, 섹터ID)
 STOCKS = [
-    ("005930", "삼성전자"),
-    ("000660", "SK하이닉스"),
+    ("005930", "삼성전자", "tech"),
+    ("000660", "SK하이닉스", "tech"),
+    ("042700", "한미반도체", "tech"),
+    ("403870", "HPSP", "tech"),
+    ("138080", "오이솔루션", "tech"),
+    ("012450", "한화에어로스페이스", "ind"),
+    ("079550", "LIG넥스원", "ind"),
+    ("329180", "HD현대중공업", "ind"),
+    ("034020", "두산에너빌리티", "ind"),
+    ("267260", "HD현대일렉트릭", "ind"),
+    ("010120", "LS ELECTRIC", "ind"),
+    ("035420", "NAVER", "comm"),
+    ("035720", "카카오", "comm"),
+    ("017670", "SK텔레콤", "comm"),
+    ("030200", "KT", "comm"),
+    ("005380", "현대차", "cyc"),
+    ("000270", "기아", "cyc"),
+    ("207940", "삼성바이오로직스", "health"),
+    ("068270", "셀트리온", "health"),
+    ("196170", "알테오젠", "health"),
+    ("105560", "KB금융", "fin"),
+    ("055550", "신한지주", "fin"),
+    ("086790", "하나금융지주", "fin"),
+    ("010950", "S-Oil", "energy"),
+    ("078930", "GS", "energy"),
+    ("015760", "한국전력", "util"),
+    ("036460", "한국가스공사", "util"),
+    ("005490", "POSCO홀딩스", "mat"),
+    ("010130", "고려아연", "mat"),
+    ("051910", "LG화학", "mat"),
+    ("033780", "KT&G", "def"),
+    ("271560", "오리온", "def"),
+    ("088980", "맥쿼리인프라", "re"),
 ]
 INDICES = [
     ("KOSPI", "코스피"),
@@ -82,19 +114,41 @@ for tag, fn in [("tv", fut_tradingview), ("naver", fut_naver)]:
 if fut_item:
     items.append(fut_item)
 
-# --- 관심종목 ---
-for code_, name in STOCKS:
+# --- 관심종목: 배치 조회(콤마 결합, 15개씩) -> 실패 시 개별 폴백 ---
+def stock_item(d, code_, name, sector):
+    return {
+        "name": name, "code": code_, "group": "stock", "sector": sector,
+        "price": num(d["closePrice"]),
+        "diff": num(d["compareToPreviousClosePrice"]),
+        "pct": num(d["fluctuationsRatio"]),
+        "krw": True,
+    }
+
+
+CHUNK = 15
+for i in range(0, len(STOCKS), CHUNK):
+    chunk = STOCKS[i:i + CHUNK]
+    codes = ",".join(c for c, _, _ in chunk)
+    got = {}
     try:
-        d = get_json(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code_}")["datas"][0]
-        items.append({
-            "name": name, "code": code_, "group": "stock",
-            "price": num(d["closePrice"]),
-            "diff": num(d["compareToPreviousClosePrice"]),
-            "pct": num(d["fluctuationsRatio"]),
-            "krw": True,
-        })
+        datas = get_json(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{codes}")["datas"]
+        for d in datas:
+            got[str(d.get("itemCode") or d.get("cd") or "")] = d
+        debug.append(f"batch{i//CHUNK}: OK ({len(datas)})")
     except Exception as e:
-        items.append({"name": name, "code": code_, "group": "stock", "error": str(e)[:60]})
+        debug.append(f"batch{i//CHUNK}: " + str(e)[:50])
+    for code_, name, sector in chunk:
+        d = got.get(code_)
+        if d is None:
+            try:
+                d = get_json(f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code_}")["datas"][0]
+            except Exception as e:
+                items.append({"name": name, "code": code_, "group": "stock", "sector": sector, "error": str(e)[:50]})
+                continue
+        try:
+            items.append(stock_item(d, code_, name, sector))
+        except Exception as e:
+            items.append({"name": name, "code": code_, "group": "stock", "sector": sector, "error": str(e)[:50]})
 
 # --- 지수 일별 시세 (자체 캔들차트용) ---
 import re
