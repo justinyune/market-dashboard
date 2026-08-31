@@ -207,41 +207,41 @@
     // ===== 섹터 정의 (미국 위젯 그룹 + 높이) =====
     const SECTORS = [
       { id: "tech", name: "Technology", h: 1500, groups: [
-        { name: "반도체", syms: ["NASDAQ:NVDA","NASDAQ:AVGO","NASDAQ:AMD","NYSE:TSM","NASDAQ:MU"] },
-        { name: "반도체 장비", syms: ["NASDAQ:ASML","NASDAQ:AMAT","NASDAQ:LRCX","NASDAQ:KLAC"] },
-        { name: "소프트웨어-인프라", syms: ["NASDAQ:MSFT","NYSE:ORCL","NASDAQ:PANW","NASDAQ:CRWD"] },
-        { name: "소프트웨어-애플리케이션", syms: ["NYSE:CRM","NYSE:NOW","NASDAQ:PLTR","NASDAQ:ADBE"] },
-        { name: "통신장비-CPO", syms: ["NYSE:ANET","NASDAQ:CSCO","NASDAQ:LITE","NYSE:COHR"] },
-        { name: "하드웨어", syms: ["NASDAQ:AAPL","NYSE:DELL","NASDAQ:SMCI"] },
-        { name: "전자부품", syms: ["NASDAQ:AXTI"] } ] },
+        { name: "반도체", syms: [["NASDAQ:NVDA","엔비디아"],["NASDAQ:AVGO","브로드컴"],["NASDAQ:AMD","AMD"],["NYSE:TSM","TSMC"],["NASDAQ:MU","마이크론"]] },
+        { name: "반도체 장비", syms: [["NASDAQ:ASML","ASML"],["NASDAQ:AMAT","어플라이드 머티리얼즈"],["NASDAQ:LRCX","램리서치"],["NASDAQ:KLAC","KLA"]] },
+        { name: "소프트웨어-인프라", syms: [["NASDAQ:MSFT","마이크로소프트"],["NYSE:ORCL","오라클"],["NASDAQ:PANW","팔로알토"],["NASDAQ:CRWD","크라우드스트라이크"]] },
+        { name: "소프트웨어-애플리케이션", syms: [["NYSE:CRM","세일즈포스"],["NYSE:NOW","서비스나우"],["NASDAQ:PLTR","팔란티어"],["NASDAQ:ADBE","어도비"]] },
+        { name: "통신장비-CPO", syms: [["NYSE:ANET","아리스타"],["NASDAQ:CSCO","시스코"],["NASDAQ:LITE","루멘텀"],["NYSE:COHR","코히런트"]] },
+        { name: "하드웨어", syms: [["NASDAQ:AAPL","애플"],["NYSE:DELL","델"],["NASDAQ:SMCI","슈퍼마이크로"]] },
+        { name: "전자부품", syms: [["NASDAQ:AXTI","AXT"]] } ] },
       { id: "ind", name: "Industrials", h: 800, groups: [
-        { name: "항공우주-방산", syms: ["NASDAQ:RKLB","NYSE:LMT","NYSE:RTX","NYSE:GE","NYSE:BA"] },
-        { name: "전기장비", syms: ["NYSE:VRT","NYSE:ETN","NYSE:GEV"] },
-        { name: "기계-운송", syms: ["NYSE:CAT","NYSE:DE","NASDAQ:HON","NYSE:UNP"] } ] },
+        { name: "항공우주-방산", syms: [["NASDAQ:RKLB","로켓랩"],["NYSE:LMT","록히드마틴"],["NYSE:RTX","RTX"],["NYSE:GE","GE에어로스페이스"],["NYSE:BA","보잉"]] },
+        { name: "전기장비", syms: [["NYSE:VRT","버티브"],["NYSE:ETN","이튼"],["NYSE:GEV","GE버노바"]] },
+        { name: "기계-운송", syms: [["NYSE:CAT","캐터필러"],["NYSE:DE","디어"],["NASDAQ:HON","하니웰"],["NYSE:UNP","유니온퍼시픽"]] } ] },
       { id: "comm", name: "Communication Services", h: 560, groups: [
-        { name: "Top 10", syms: ["NASDAQ:GOOGL","NASDAQ:META","NASDAQ:NFLX","NASDAQ:TMUS","NYSE:T","NYSE:VZ","NYSE:DIS","NYSE:SPOT","NASDAQ:CMCSA","NASDAQ:EA"] } ] },
+        { name: "Top 10", syms: [["NASDAQ:GOOGL","알파벳"],["NASDAQ:META","메타"],["NASDAQ:NFLX","넷플릭스"],["NASDAQ:TMUS","T모바일"],["NYSE:T","AT&T"],["NYSE:VZ","버라이즌"],["NYSE:DIS","디즈니"],["NYSE:SPOT","스포티파이"],["NASDAQ:CMCSA","컴캐스트"],["NASDAQ:EA","EA"]] } ] },
       { id: "cyc", name: "Consumer Cyclical", h: 600, groups: [
-        { name: "Top 10 + 쿠팡", syms: ["NASDAQ:AMZN","NASDAQ:TSLA","NYSE:HD","NYSE:MCD","NASDAQ:BKNG","NYSE:TM","NYSE:LOW","NYSE:TJX","NASDAQ:SBUX","NYSE:NKE","NYSE:CPNG"] } ] },
+        { name: "Top 10 + 쿠팡", syms: [["NASDAQ:AMZN","아마존"],["NASDAQ:TSLA","테슬라"],["NYSE:HD","홈디포"],["NYSE:MCD","맥도날드"],["NASDAQ:BKNG","부킹홀딩스"],["NYSE:TM","도요타"],["NYSE:LOW","로우스"],["NYSE:TJX","TJX"],["NASDAQ:SBUX","스타벅스"],["NYSE:NKE","나이키"],["NYSE:CPNG","쿠팡"]] } ] },
       { id: "health", name: "Healthcare", h: 560, groups: [
-        { name: "Top 10", syms: ["NYSE:LLY","NYSE:JNJ","NYSE:ABBV","NYSE:NVO","NYSE:UNH","NASDAQ:ISRG","NYSE:ABT","NYSE:MRK","NYSE:TMO","NASDAQ:AZN"] } ] },
+        { name: "Top 10", syms: [["NYSE:LLY","일라이릴리"],["NYSE:JNJ","존슨앤드존슨"],["NYSE:ABBV","애브비"],["NYSE:NVO","노보노디스크"],["NYSE:UNH","유나이티드헬스"],["NASDAQ:ISRG","인튜이티브서지컬"],["NYSE:ABT","애보트"],["NYSE:MRK","머크"],["NYSE:TMO","서모피셔"],["NASDAQ:AZN","아스트라제네카"]] } ] },
       { id: "fin", name: "Financial", h: 560, groups: [
-        { name: "Top 10", syms: ["NYSE:BRK.B","NYSE:JPM","NYSE:V","NYSE:MA","NYSE:BAC","NYSE:WFC","NYSE:GS","NYSE:MS","NYSE:AXP","NYSE:SCHW"] } ] },
+        { name: "Top 10", syms: [["NYSE:BRK.B","버크셔해서웨이"],["NYSE:JPM","JP모건"],["NYSE:V","비자"],["NYSE:MA","마스터카드"],["NYSE:BAC","뱅크오브아메리카"],["NYSE:WFC","웰스파고"],["NYSE:GS","골드만삭스"],["NYSE:MS","모건스탠리"],["NYSE:AXP","아메리칸익스프레스"],["NYSE:SCHW","찰스슈왑"]] } ] },
       { id: "energy", name: "Energy", h: 560, groups: [
-        { name: "Top 10", syms: ["NYSE:XOM","NYSE:CVX","NYSE:SHEL","NYSE:TTE","NYSE:COP","NYSE:BP","NYSE:EOG","NYSE:SLB","NYSE:MPC","NYSE:PSX"] } ] },
+        { name: "Top 10", syms: [["NYSE:XOM","엑슨모빌"],["NYSE:CVX","셰브런"],["NYSE:SHEL","셸"],["NYSE:TTE","토탈에너지스"],["NYSE:COP","코노코필립스"],["NYSE:BP","BP"],["NYSE:EOG","EOG리소시스"],["NYSE:SLB","슐럼버거"],["NYSE:MPC","마라톤페트롤리엄"],["NYSE:PSX","필립스66"]] } ] },
       { id: "util", name: "Utilities", h: 560, groups: [
-        { name: "Top 10", syms: ["NYSE:NEE","NYSE:SO","NASDAQ:CEG","NYSE:DUK","NYSE:VST","NASDAQ:AEP","NYSE:SRE","NYSE:D","NASDAQ:EXC","NASDAQ:XEL"] } ] },
+        { name: "Top 10", syms: [["NYSE:NEE","넥스트에라"],["NYSE:SO","서던컴퍼니"],["NASDAQ:CEG","컨스틸레이션"],["NYSE:DUK","듀크에너지"],["NYSE:VST","비스트라"],["NASDAQ:AEP","AEP"],["NYSE:SRE","셈프라"],["NYSE:D","도미니언"],["NASDAQ:EXC","엑셀론"],["NASDAQ:XEL","엑셀에너지"]] } ] },
       { id: "mat", name: "Basic Materials", h: 560, groups: [
-        { name: "Top 10", syms: ["NASDAQ:LIN","NYSE:SHW","NYSE:SCCO","NYSE:ECL","NYSE:APD","NYSE:FCX","NYSE:NEM","NYSE:NUE","NYSE:CRH","NYSE:DOW"] } ] },
+        { name: "Top 10", syms: [["NASDAQ:LIN","린데"],["NYSE:SHW","셔윈윌리엄스"],["NYSE:SCCO","서던코퍼"],["NYSE:ECL","에코랩"],["NYSE:APD","에어프로덕츠"],["NYSE:FCX","프리포트맥모란"],["NYSE:NEM","뉴몬트"],["NYSE:NUE","뉴코"],["NYSE:CRH","CRH"],["NYSE:DOW","다우"]] } ] },
       { id: "def", name: "Consumer Defensive", h: 560, groups: [
-        { name: "Top 10", syms: ["NYSE:WMT","NASDAQ:COST","NYSE:PG","NYSE:KO","NYSE:PM","NASDAQ:PEP","NYSE:UL","NASDAQ:MDLZ","NYSE:MO","NYSE:CL"] } ] },
+        { name: "Top 10", syms: [["NYSE:WMT","월마트"],["NASDAQ:COST","코스트코"],["NYSE:PG","P&G"],["NYSE:KO","코카콜라"],["NYSE:PM","필립모리스"],["NASDAQ:PEP","펩시코"],["NYSE:UL","유니레버"],["NASDAQ:MDLZ","몬델리즈"],["NYSE:MO","알트리아"],["NYSE:CL","콜게이트"]] } ] },
       { id: "re", name: "Real Estate", h: 560, groups: [
-        { name: "Top 10", syms: ["NYSE:PLD","NYSE:AMT","NYSE:WELL","NASDAQ:EQIX","NYSE:SPG","NYSE:PSA","NYSE:O","NYSE:DLR","NYSE:CCI","NYSE:CBRE"] } ] }
+        { name: "Top 10", syms: [["NYSE:PLD","프로로지스"],["NYSE:AMT","아메리칸타워"],["NYSE:WELL","웰타워"],["NASDAQ:EQIX","에퀴닉스"],["NYSE:SPG","사이먼프로퍼티"],["NYSE:PSA","퍼블릭스토리지"],["NYSE:O","리얼티인컴"],["NYSE:DLR","디지털리얼티"],["NYSE:CCI","크라운캐슬"],["NYSE:CBRE","CBRE"]] } ] }
     ];
 
     // ===== 내 관심종목 (미국) — 여기에 심볼 추가/삭제 =====
     const MY_US = [
-      "NASDAQ:NVDA",
-      "NASDAQ:MU"
+      ["NASDAQ:NVDA", "엔비디아"],
+      ["NASDAQ:MU", "마이크론"]
     ];
     let myWidgetInited = false;
     function buildMyWidget() {
@@ -249,7 +249,7 @@
       const host = document.getElementById("usw-my");
       const cfg = {
         width: "100%", height: Math.max(160, MY_US.length * 44 + 120),
-        symbolsGroups: [{ name: "매수 관심", symbols: MY_US.map(sym => ({ name: sym })) }],
+        symbolsGroups: [{ name: "매수 관심", symbols: MY_US.map(p => ({ name: p[0], displayName: (p[1] || "") + " (" + p[0].split(":")[1] + ")" })) }],
         showSymbolLogo: true, isTransparent: true, colorTheme: "dark", locale: "kr"
       };
       const box = document.createElement("div");
@@ -295,7 +295,7 @@
         width: "100%", height: sec.h,
         symbolsGroups: sec.groups.map(g => ({
           name: g.name,
-          symbols: g.syms.map(s => ({ name: s }))
+          symbols: g.syms.map(p => ({ name: p[0], displayName: (p[1] || "") + " (" + p[0].split(":")[1] + ")" }))
         })),
         showSymbolLogo: true, isTransparent: true, colorTheme: "dark", locale: "kr"
       };
@@ -562,8 +562,10 @@
           : n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const cls = item.diff > 0 ? "up" : (item.diff < 0 ? "down" : "flat");
         const sign = item.diff > 0 ? "+" : "";
+        const codeTag = (item.group === "stock" || item.group === "mystock")
+          ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">' + code + '</span>' : '';
         row.innerHTML =
-          '<span class="nm">' + item.name + ' <span style="font-size:11px;color:var(--muted)">▾</span></span>' +
+          '<span class="nm">' + item.name + codeTag + ' <span style="font-size:11px;color:var(--muted)">▾</span></span>' +
           '<span class="pr">' + fmt(item.price) + '</span>' +
           '<span class="df ' + cls + '">' + sign + fmt(item.diff) + '</span>' +
           '<span class="pc ' + cls + '">' + sign + item.pct.toFixed(2) + '%</span>';
