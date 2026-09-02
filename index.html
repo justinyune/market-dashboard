@@ -340,11 +340,19 @@
     let krData = null;
     const UP = "#ef5350", DOWN = "#3d9bff";
 
-    function intraUrl(code) {
+    function intraUrls(code) {
       const t = Math.floor(Date.now() / 60000);
-      return (code.length === 6)
-        ? "https://ssl.pstatic.net/imgfinance/chart/item/area/day/" + code + ".png?t=" + t
-        : "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t;
+      if (code.length === 6) {
+        return [
+          "https://ssl.pstatic.net/imgfinance/chart/item/area/day/" + code + ".png?t=" + t,
+          "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t
+        ];
+      }
+      return [
+        "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?t=" + t,
+        "https://ssl.pstatic.net/imgfinance/chart/sise/day/" + code + ".png?t=" + t,
+        "https://ssl.pstatic.net/imgfinance/chart/mobile/day/" + code + "_end.png?r=" + (t + 1)
+      ];
     }
     function stockCandleUrl(code, period) {
       const t = Math.floor(Date.now() / 60000);
@@ -511,10 +519,16 @@
         tabs.querySelectorAll("button").forEach(b => b.className = b.dataset.p === period ? "on" : "");
         if (period === "intra") {
           if (code === "FUT" && renderFutIntra(cv)) return;
+          const urls = intraUrls(code);
+          let idx = 0;
           const img = document.createElement("img");
           img.alt = "차트";
-          img.onerror = () => { cv.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 2px;">차트를 불러올 수 없습니다 · ' + fbLink + '</div>'; };
-          img.src = intraUrl(code);
+          img.onerror = () => {
+            idx++;
+            if (idx < urls.length) img.src = urls[idx];
+            else cv.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 2px;">차트를 불러올 수 없습니다 · ' + fbLink + '</div>';
+          };
+          img.src = urls[0];
           cv.innerHTML = "";
           cv.appendChild(img);
           return;
