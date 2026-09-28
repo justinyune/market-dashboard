@@ -114,32 +114,68 @@ for tag, fn in [("tv", fut_tradingview), ("naver", fut_naver)]:
 if fut_item:
     items.append(fut_item)
 
-# --- 미국 국채 금리 (TradingView scanner, 실시간) ---
+# --- 미국 국채 금리 (후보 체인: scanner lp -> scanner close -> yahoo 직접) ---
+import urllib.parse
+
+# (표시명, TV심볼, 야후심볼, 야후스케일)  ※ ^TNX 계열은 수익률x10 표기라 0.1 스케일
 RATES = [
-    ("TVC:US02Y", "2년물"),
-    ("TVC:US05Y", "5년물"),
-    ("TVC:US10Y", "10년물"),
-    ("TVC:US30Y", "30년물"),
+    ("2년물", "TVC:US02Y", "2YY=F", 1.0),
+    ("5년물", "TVC:US05Y", "^FVX", 0.1),
+    ("10년물", "TVC:US10Y", "^TNX", 0.1),
+    ("30년물", "TVC:US30Y", "^TYX", 0.1),
 ]
 
-for sym, name in RATES:
-    try:
-        import urllib.parse
-        url = ("https://scanner.tradingview.com/symbol?symbol="
-               + urllib.parse.quote(sym) + "&fields=lp,ch,chp&no_404=true")
-        d = get_json(url)
-        if d.get("lp") is None:
-            raise Exception("lp is null")
+
+def rate_scanner_lp(tv_sym, _ysym, _scale):
+    url = ("https://scanner.tradingview.com/symbol?symbol="
+           + urllib.parse.quote(tv_sym) + "&fields=lp,ch&no_404=true")
+    d = get_json(url)
+    if d.get("lp") is None:
+        raise Exception("lp null")
+    return float(d["lp"]), float(d.get("ch") or 0)
+
+
+def rate_scanner_close(tv_sym, _ysym, _scale):
+    url = ("https://scanner.tradingview.com/symbol?symbol="
+           + urllib.parse.quote(tv_sym) + "&fields=close,change_abs&no_404=true")
+    d = get_json(url)
+    if d.get("close") is None:
+        raise Exception("close null")
+    return float(d["close"]), float(d.get("change_abs") or 0)
+
+
+def rate_yahoo(_tv_sym, ysym, scale):
+    url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+           + urllib.parse.quote(ysym) + "?interval=1d&range=5d")
+    meta = get_json(url)["chart"]["result"][0]["meta"]
+    price = meta.get("regularMarketPrice")
+    if price is None:
+        raise Exception("price null")
+    prev = meta.get("chartPreviousClose") or meta.get("previousClose") or price
+    return float(price) * scale, (float(price) - float(prev)) * scale
+
+
+for name, tv_sym, ysym, scale in RATES:
+    got = None
+    for tag, fn in [("tv-lp", rate_scanner_lp), ("tv-close", rate_scanner_close), ("yahoo", rate_yahoo)]:
+        try:
+            price, diff = fn(tv_sym, ysym, scale)
+            got = (price, diff)
+            debug.append(f"rate-{name}: {tag} OK")
+            break
+        except Exception as e:
+            debug.append(f"rate-{name}: {tag} " + str(e)[:40])
+    if got:
+        price, diff = got
         items.append({
             "name": name, "group": "rate",
-            "price": float(d["lp"]),
-            "diff": float(d.get("ch") or 0),
-            "pct": float(d.get("chp") or 0),
+            "price": round(price, 3),
+            "diff": round(diff, 3),
+            "pct": round(diff / (price - diff) * 100, 2) if price != diff else 0,
             "krw": False,
         })
-    except Exception as e:
-        items.append({"name": name, "group": "rate", "error": str(e)[:50]})
-        debug.append(f"rate-{sym}: " + str(e)[:50])
+    else:
+        items.append({"name": name, "group": "rate", "error": "all failed"})
 
 
 # --- 관심종목: 배치 조회(콤마 결합, 15개씩) -> 실패 시 개별 폴백 ---
