@@ -97,12 +97,20 @@
         <div class="kr-note" id="kr-note">네이버 증권</div>
       </div>
 
+      <div class="kr-panel">
+        <div class="kr-head">🇺🇸 미국 국채 금리</div>
+        <div id="rate-rows">
+          <div class="kr-row"><span class="nm flat">로딩 중...</span><span class="pr"></span><span class="df"></span><span class="pc"></span></div>
+        </div>
+        <div class="kr-note" id="rate-note">TradingView</div>
+      </div>
+
       <div class="widget-panel">
         <div class="tradingview-widget-container">
           <div class="tradingview-widget-container__widget"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js" async>
           {
-            "width": "100%", "height": 1250,
+            "width": "100%", "height": 1050,
             "symbolsGroups": [
               { "name": "미국 지수", "symbols": [
                 { "name": "FOREXCOM:DJI", "displayName": "다우존스" },
@@ -122,11 +130,6 @@
                 { "name": "FX_IDC:USDCNH", "displayName": "달러/위안 (역외)" },
                 { "name": "FX:EURUSD", "displayName": "유로/달러" },
                 { "name": "FX:GBPUSD", "displayName": "파운드/달러" } ] },
-              { "name": "미국 국채 금리", "symbols": [
-                { "name": "FRED:DGS2", "displayName": "2년물 (전일)" },
-                { "name": "FRED:DGS5", "displayName": "5년물 (전일)" },
-                { "name": "FRED:DGS10", "displayName": "10년물 (전일)" },
-                { "name": "FRED:DGS30", "displayName": "30년물 (전일)" } ] },
               { "name": "원자재", "symbols": [
                 { "name": "TVC:USOIL", "displayName": "WTI" },
                 { "name": "TVC:UKOIL", "displayName": "브렌트유" },
@@ -652,6 +655,29 @@
           else el.innerHTML = '<div class="kr-row"><span class="nm flat">등록된 한국 종목 없음</span></div>';
         }
       });
+
+      const rates = krData.items.filter(i => i.group === "rate");
+      const rateEl = document.getElementById("rate-rows");
+      if (rateEl && rates.length) {
+        rateEl.innerHTML = "";
+        rates.forEach(r => {
+          const row = document.createElement("div");
+          row.className = "kr-row";
+          if (r.error !== undefined) {
+            row.innerHTML = '<span class="nm">' + r.name + '</span><span class="pr flat">—</span><span class="df flat">조회 실패</span><span class="pc"></span>';
+          } else {
+            const cls = r.diff > 0 ? "up" : (r.diff < 0 ? "down" : "flat");
+            const sign = r.diff > 0 ? "+" : "";
+            row.innerHTML =
+              '<span class="nm">' + r.name + '</span>' +
+              '<span class="pr">' + r.price.toFixed(2) + '%</span>' +
+              '<span class="df ' + cls + '">' + sign + r.diff.toFixed(2) + '%p</span>' +
+              '<span class="pc ' + cls + '">' + sign + (r.diff * 100).toFixed(1) + 'bp</span>';
+          }
+          rateEl.appendChild(row);
+        });
+        document.getElementById("rate-note").textContent = "TradingView · " + krData.updated + " 기준 · 5분 주기 갱신";
+      }
 
       const my = krData.items.filter(i => i.group === "mystock");
       const myEl = document.getElementById("krsec-my");

@@ -114,6 +114,34 @@ for tag, fn in [("tv", fut_tradingview), ("naver", fut_naver)]:
 if fut_item:
     items.append(fut_item)
 
+# --- 미국 국채 금리 (TradingView scanner, 실시간) ---
+RATES = [
+    ("TVC:US02Y", "2년물"),
+    ("TVC:US05Y", "5년물"),
+    ("TVC:US10Y", "10년물"),
+    ("TVC:US30Y", "30년물"),
+]
+
+for sym, name in RATES:
+    try:
+        import urllib.parse
+        url = ("https://scanner.tradingview.com/symbol?symbol="
+               + urllib.parse.quote(sym) + "&fields=lp,ch,chp&no_404=true")
+        d = get_json(url)
+        if d.get("lp") is None:
+            raise Exception("lp is null")
+        items.append({
+            "name": name, "group": "rate",
+            "price": float(d["lp"]),
+            "diff": float(d.get("ch") or 0),
+            "pct": float(d.get("chp") or 0),
+            "krw": False,
+        })
+    except Exception as e:
+        items.append({"name": name, "group": "rate", "error": str(e)[:50]})
+        debug.append(f"rate-{sym}: " + str(e)[:50])
+
+
 # --- 관심종목: 배치 조회(콤마 결합, 15개씩) -> 실패 시 개별 폴백 ---
 def stock_item(d, code_, name, sector, sub=None):
     it = {
