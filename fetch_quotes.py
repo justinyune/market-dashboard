@@ -78,11 +78,13 @@ for code_, name in INDICES:
 # --- 코스피200 선물 (야간 포함: TradingView 1순위, 네이버 폴백) ---
 def fut_tradingview():
     url = ("https://scanner.tradingview.com/symbol"
-           "?symbol=KRX%3AK2I1!&fields=lp,ch,chp&no_404=true")
+           "?symbol=KRX%3AK2I1!&fields=lp,ch,chp,close,change_abs,change&no_404=true")
     d = get_json(url)
-    price, ch, chp = d["lp"], d["ch"], d["chp"]
+    price = d.get("lp") if d.get("lp") is not None else d.get("close")
+    ch = d.get("ch") if d.get("ch") is not None else d.get("change_abs")
+    chp = d.get("chp") if d.get("chp") is not None else d.get("change")
     if price is None:
-        raise Exception("lp is null")
+        raise Exception("lp/close null")
     return {
         "name": "코스피200 선물", "code": "FUT", "group": "index",
         "price": float(price),
